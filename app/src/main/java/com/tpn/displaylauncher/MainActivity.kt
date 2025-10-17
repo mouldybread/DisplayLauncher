@@ -23,8 +23,8 @@ class MainActivity : ComponentActivity() {
         // Initialize app launcher
         appLauncher = AppLauncher(this)
 
-        // Start web server on port 9091
-        webServer = LauncherWebServer(9091, appLauncher)
+        // Start web server
+        webServer = LauncherWebServer(8080, appLauncher)
         webServer.start()
 
         setContent {
@@ -56,13 +56,13 @@ fun LauncherUI(appLauncher: AppLauncher) {
             .padding(16.dp)
     ) {
         Text(
-            text = "Display Launcher",
+            text = "Headless Launcher",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
         Text(
-            text = "Web Interface: http://[device-ip]:9091",
+            text = "Web Interface: http://[device-ip]:8080",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(bottom = 16.dp)
