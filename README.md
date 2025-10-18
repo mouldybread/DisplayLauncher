@@ -1,6 +1,6 @@
 # Display Launcher
 
-A headless Android launcher designed for digital signage, kiosks, and remote-controlled displays. Control which apps run on your Android device via a simple web API or browser interface. For complete Home Assistant setup and automation examples, see the [Home Assistant Integration Guide](./HomeAssistant.md).
+A headless Android launcher designed for digital signage, kiosks, and remote-controlled displays. Control which apps run on your Android device via a simple web API or browser interface.
 
 > [!CAUTION]
 > This application has **NO built-in authentication or encryption**. The web server runs on port 9091 with **unrestricted access** to anyone who can reach the device on your network.
@@ -10,6 +10,27 @@ A headless Android launcher designed for digital signage, kiosks, and remote-con
 > ❌ **DO NOT** use on untrusted networks (public WiFi, etc.)  
 > ❌ **DO NOT** assume any built-in security exists  
 > ⚠️ **NEW:** This app can install/uninstall APKs remotely - use only on trusted networks!
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [How It Works](#how-it-works)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Web Interface](#web-interface)
+  - [REST API](#rest-api)
+  - [Examples](#examples)
+- [On-Screen UI Access](#on-screen-ui-access)
+- [Configuration](#configuration)
+- [Caveats & Limitations](#caveats--limitations)
+- [Permissions](#permissions)
+- [Troubleshooting](#troubleshooting)
+- [Technical Details](#technical-details)
+- [Documentation](#documentation)
+- [CI/CD](#cicd)
+
+---
 
 ## Overview
 
@@ -21,9 +42,7 @@ Display Launcher runs as a minimal, invisible home screen that allows you to rem
 - **Presentation systems** - Switch between apps during demos
 - **Projector control** - Manage content from any device on your network
 
-## Home Assistant Integration
-
-For complete Home Assistant setup and automation examples, see the [Home Assistant Integration Guide](./HomeAssistant.md).
+---
 
 ## Features
 
@@ -36,6 +55,8 @@ For complete Home Assistant setup and automation examples, see the [Home Assista
 - ✅ Persistent background service - Works even when other apps are running
 - ✅ Triple-tap gesture to access settings when needed
 - ✅ No accessibility services required
+
+---
 
 ## How It Works
 
@@ -69,7 +90,7 @@ When apps are launched via the API, they come to the foreground automatically. T
 
 ### Setting as Default Launcher (ADB Method)
 
-```
+```bash
 adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
 ```
 
@@ -95,6 +116,8 @@ The web interface provides:
 - Real-time status messages
 
 ### REST API
+
+For complete API documentation, see the [API Reference](./API.md).
 
 #### Get list of installed apps
 
@@ -464,6 +487,14 @@ com.tpn.displaylauncher/
 
 ---
 
+## Documentation
+
+- **[API Reference](./API.md)** - Complete REST API documentation with all endpoints, parameters, and examples
+- **[Home Assistant Integration Guide](./HomeAssistant.md)** - Comprehensive guide for Home Assistant automation, scripts, and dashboard setup
+
+---
+
 ## CI/CD
 
 GitHub Actions workflow included for automated APK builds on releases. See `.github/workflows/build-release.yml`.
+
