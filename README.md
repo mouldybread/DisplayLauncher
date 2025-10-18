@@ -2,6 +2,14 @@
 
 A headless Android launcher designed for digital signage, kiosks, and remote-controlled displays. Control which apps run on your Android device via a simple web API or browser interface.
 
+> [!CAUTION]
+> This application has **NO built-in authentication or encryption**. The web server runs on port 9091 with **unrestricted access** to anyone who can reach the device on your network.
+> 
+> ❌ **DO NOT** expose this app directly to the internet  
+> ❌ **DO NOT** port forward 9091 to the internet  
+> ❌ **DO NOT** use on untrusted networks (public WiFi, etc.)  
+> ❌ **DO NOT** assume any built-in security exists  
+
 ## Overview
 
 Display Launcher runs as a minimal, invisible home screen that allows you to remotely switch between applications without user interaction. Perfect for:
