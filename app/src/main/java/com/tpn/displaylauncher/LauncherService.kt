@@ -19,7 +19,6 @@ class LauncherService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        // Use application context for better permissions
         appLauncher = AppLauncher(applicationContext)
 
         webServer = LauncherWebServer(9091, appLauncher)
@@ -36,9 +35,8 @@ class LauncherService : Service() {
         }
     }
 
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY // Restart if killed
+        return START_STICKY
     }
 
     override fun onDestroy() {

@@ -14,6 +14,7 @@ data class AppInfo(
 
 class AppLauncher(private val context: Context) {
 
+    @Suppress("QueryPermissionsNeeded")
     fun getInstalledApps(): List<AppInfo> {
         val packageManager = context.packageManager
         val packages = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
@@ -38,7 +39,6 @@ class AppLauncher(private val context: Context) {
 
             val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
             if (launchIntent != null) {
-                // More aggressive flags to ensure app comes to foreground
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
@@ -57,3 +57,4 @@ class AppLauncher(private val context: Context) {
             false
         }
     }
+}

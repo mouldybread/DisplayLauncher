@@ -1,6 +1,7 @@
 package com.tpn.displaylauncher
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -41,9 +42,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Start the foreground service
         val serviceIntent = Intent(this, LauncherService::class.java)
-        startForegroundService(serviceIntent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
 
         setContent {
             MaterialTheme {
@@ -59,10 +63,9 @@ fun HeadlessLauncher(appLauncher: AppLauncher) {
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
 
-    // Reset tap count after timeout
     LaunchedEffect(tapCount) {
         if (tapCount > 0) {
-            delay(1000) // 1 second timeout
+            delay(1000)
             tapCount = 0
         }
     }
@@ -76,7 +79,6 @@ fun HeadlessLauncher(appLauncher: AppLauncher) {
                     onTap = { offset ->
                         val currentTime = System.currentTimeMillis()
 
-                        // Check if tap is in center region (middle 30% of screen)
                         val centerX = size.width / 2f
                         val centerY = size.height / 2f
                         val tapRadius = size.width * 0.15f
@@ -87,8 +89,7 @@ fun HeadlessLauncher(appLauncher: AppLauncher) {
                         )
 
                         if (distance <= tapRadius) {
-                            // Valid center tap
-                            if (currentTime - lastTapTime < 500) { // 500ms between taps
+                            if (currentTime - lastTapTime < 500) {
                                 tapCount++
                                 if (tapCount >= 3) {
                                     showUI = !showUI
@@ -108,7 +109,6 @@ fun HeadlessLauncher(appLauncher: AppLauncher) {
                 showUI = false
             }
         } else {
-            // Show subtle hint in center
             Text(
                 text = "Tap center 3x to show settings",
                 color = Color.Gray.copy(alpha = 0.3f),
@@ -149,7 +149,6 @@ fun LauncherUI(appLauncher: AppLauncher, onDismiss: () -> Unit) {
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        // Buttons row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
