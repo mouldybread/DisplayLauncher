@@ -1,6 +1,6 @@
 # Display Launcher
 
-A headless Android launcher designed for digital signage, kiosks, and remote-controlled displays. Control which apps run on your Android device via a simple web API or browser interface.
+A headless Android launcher designed for digital signage, kiosks, and remote-controlled displays. Control which apps run on your Android device via a simple web API or browser interface. For complete Home Assistant setup and automation examples, see the [Home Assistant Integration Guide](./HomeAssistant.md).
 
 > [!CAUTION]
 > This application has **NO built-in authentication or encryption**. The web server runs on port 9091 with **unrestricted access** to anyone who can reach the device on your network.
@@ -19,6 +19,11 @@ Display Launcher runs as a minimal, invisible home screen that allows you to rem
 - **Smart home displays** - Change dashboards on demand
 - **Presentation systems** - Switch between apps during demos
 - **Projector control** - Manage content from any device on your network
+
+## Home Assistant Integration
+
+For complete Home Assistant setup and automation examples, see the [Home Assistant Integration Guide](./HomeAssistant.md).
+
 
 ## Features
 
