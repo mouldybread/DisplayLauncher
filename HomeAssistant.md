@@ -1,448 +1,555 @@
-# Display Launcher - Home Assistant Integration Guide
+# Home Assistant Integration Guide
 
-Complete setup guide for controlling your Android TV displays remotely using Display Launcher's REST API from Home Assistant. Launch apps, open deep links, and automate your digital signage displays.
+Complete guide for integrating Display Launcher with Home Assistant for automated digital signage control.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [Basic Setup](#basic-setup)
+- [REST Commands](#rest-commands)
+- [Input Helpers](#input-helpers)
+- [Scripts](#scripts)
+- [Automation Examples](#automation-examples)
+- [Advanced Examples](#advanced-examples)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Overview
+
+Display Launcher's REST API makes it perfect for Home Assistant automation. Control your Android displays based on:
+
+- **Time of day** - Switch content on a schedule
+- **Presence** - Show specific content when home/away
+- **Motion sensors** - Wake displays when movement detected
+- **Media playback** - Auto-launch apps when playing media
+- **Manual control** - Dashboards and scripts for one-touch control
+
+---
 
 ## Prerequisites
 
-- Display Launcher installed on your Android TV devices
-- Home Assistant instance on the same network
-- Device IP addresses (static recommended)
+1. Display Launcher installed on Android device(s)
+2. Device set as default launcher
+3. Device IP address(es) (set static IPs recommended)
+4. Home Assistant instance on same network
+5. Complete API reference: [API.md](./API.md)
 
 ---
 
-## Configuration
+## Basic Setup
 
-### 1. REST Commands
+### Step 1: Add REST Commands
 
-Create or edit `rest_command.yaml`:
+Add these to your `configuration.yaml`:
 
 ```yaml
-# Basic app launching
-launch_app_device:
-  url: "http://{{ device_ip }}:9091/api/launch"
-  method: POST
-  content_type: "application/json"
-  payload: '{"packageName": "{{ package_name }}"}'
-  timeout: 10
-
-# Launch with intent (for deep links, URLs, etc.)
-launch_app_with_intent:
-  url: "http://{{ device_ip }}:9091/api/launch-intent"
-  method: POST
-  content_type: "application/json"
-  payload: '{"packageName": "{{ package_name }}", "action": "{{ action }}", "data": "{{ data }}"}'
-  timeout: 10
+rest_command:
+  # Launch app on specific device
+  launch_app_device:
+    url: "http://{{ device_ip }}:9091/api/launch"
+    method: POST
+    content_type: "application/json"
+    payload: '{"packageName":"{{ package_name }}"}'
+  
+  # Launch app with intent (YouTube, URLs, deep links)
+  launch_app_with_intent:
+    url: "http://{{ device_ip }}:9091/api/launch-intent"
+    method: POST
+    content_type: "application/json"
+    payload: '{"packageName":"{{ package_name }}","action":"{{ action }}","data":"{{ data }}"}'
+  
+  # Uninstall app
+  uninstall_app:
+    url: "http://{{ device_ip }}:9091/api/uninstall"
+    method: POST
+    content_type: "application/json"
+    payload: '{"packageName":"{{ package_name }}"}'
 ```
 
-### 2. Input Selects
+### Step 2: Restart Home Assistant
 
-Create or edit `input_select.yaml`:
-
-```yaml
-# Device selector
-display_device:
-  name: Display Device
-  options:
-    - Living Room (192.168.1.101)
-    - Kitchen (192.168.1.102)
-    - Bedroom (192.168.1.103)
-    - All Devices
-  icon: mdi:television
-
-# App selector
-display_app:
-  name: App to Launch
-  options:
-    - YouTube (com.google.android.youtube.tv)
-    - Netflix (com.netflix.ninja)
-    - Plex (com.plexapp.android)
-    - Spotify (com.spotify.tv.android)
-    - SmartTube (com.liskovsoft.smarttubetv.beta)
-    - Home (com.tpn.displaylauncher)
-  icon: mdi:application
+```
+Developer Tools → YAML → Restart
 ```
 
-### 3. Scripts
-
-Create or edit `scripts.yaml`:
+### Step 3: Test
 
 ```yaml
-# Universal app launcher
-launch_display_app:
-  alias: Launch App on Display
-  sequence:
-    - variables:
-        device_map:
-          "Living Room (192.168.1.101)": "192.168.1.101"
-          "Kitchen (192.168.1.102)": "192.168.1.102"
-          "Bedroom (192.168.1.103)": "192.168.1.103"
-        app_map:
-          "YouTube (com.google.android.youtube.tv)": "com.google.android.youtube.tv"
-          "Netflix (com.netflix.ninja)": "com.netflix.ninja"
-          "Plex (com.plexapp.android)": "com.plexapp.android"
-          "Spotify (com.spotify.tv.android)": "com.spotify.tv.android"
-          "SmartTube (com.liskovsoft.smarttubetv.beta)": "com.liskovsoft.smarttubetv.beta"
-          "Home (com.tpn.displaylauncher)": "com.tpn.displaylauncher"
-    - choose:
-        - conditions:
-            - condition: state
-              entity_id: input_select.display_device
-              state: "All Devices"
-          sequence:
-            - service: rest_command.launch_app_device
-              data:
-                device_ip: "192.168.1.101"
-                package_name: "{{ app_map[states('input_select.display_app')] }}"
-            - service: rest_command.launch_app_device
-              data:
-                device_ip: "192.168.1.102"
-                package_name: "{{ app_map[states('input_select.display_app')] }}"
-            - service: rest_command.launch_app_device
-              data:
-                device_ip: "192.168.1.103"
-                package_name: "{{ app_map[states('input_select.display_app')] }}"
-      default:
-        - service: rest_command.launch_app_device
-          data:
-            device_ip: "{{ device_map[states('input_select.display_device')] }}"
-            package_name: "{{ app_map[states('input_select.display_app')] }}"
-```
-
-### 4. Configuration File
-
-Ensure your `configuration.yaml` includes:
-
-```yaml
-rest_command: !include rest_command.yaml
-input_select: !include input_select.yaml
-script: !include scripts.yaml
+service: rest_command.launch_app_device
+data:
+  device_ip: "192.168.1.100"
+  package_name: "com.android.chrome"
 ```
 
 ---
 
-## Lovelace Dashboard Card
+## Input Helpers
 
-Add this card to your dashboard for manual control:
+Create these helpers for easier automation.
+
+### Input Select - Devices
 
 ```yaml
-type: vertical-stack
-cards:
-  - type: entities
-    title: 🚀 Display Launcher Control
-    entities:
-      - entity: input_select.display_device
-      - entity: input_select.display_app
-  - type: button
+input_select:
+  display_launcher_device:
+    name: Display Device
+    options:
+      - All Devices
+      - Living Room (192.168.1.100)
+      - Kitchen (192.168.1.101)
+      - Bedroom (192.168.1.102)
+    initial: All Devices
+    icon: mdi:television
+```
+
+### Input Select - Apps
+
+```yaml
+input_select:
+  display_launcher_app:
     name: Launch App
-    icon: mdi:play-circle
-    tap_action:
-      action: call-service
-      service: script.launch_display_app
+    options:
+      - Chrome (com.android.chrome)
+      - YouTube (com.google.android.youtube)
+      - Netflix (com.netflix.mediaclient)
+      - Kodi (org.xbmc.kodi)
+    icon: mdi:application
+```
+
+### Input Text - YouTube Video ID
+
+```yaml
+input_text:
+  youtube_video_id:
+    name: YouTube Video ID
+    initial: ""
+    icon: mdi:youtube
+```
+
+---
+
+## Scripts
+
+### Script: Launch App
+
+```yaml
+script:
+  launch_display_app:
+    alias: Launch Display App
+    fields:
+      device:
+        description: Device name or IP
+        example: "Living Room (192.168.1.100)"
+      app:
+        description: App with package name
+        example: "Chrome (com.android.chrome)"
+    sequence:
+      - variables:
+          # Extract IP from device string
+          device_ip: >
+            {% if "All Devices" in device %}
+              ""
+            {% else %}
+              {{ device.split("(")[1].split(")")[0] }}
+            {% endif %}
+          # Extract package name from app string
+          package_name: >
+            {{ app.split("(")[1].split(")")[0] }}
+      
+      - choose:
+          # Launch on all devices
+          - conditions:
+              - condition: template
+                value_template: "{{ device_ip == '' }}"
+            sequence:
+              - service: rest_command.launch_app_device
+                data:
+                  device_ip: "192.168.1.100"
+                  package_name: "{{ package_name }}"
+              - service: rest_command.launch_app_device
+                data:
+                  device_ip: "192.168.1.101"
+                  package_name: "{{ package_name }}"
+              - service: rest_command.launch_app_device
+                data:
+                  device_ip: "192.168.1.102"
+                  package_name: "{{ package_name }}"
+        
+        # Launch on specific device
+        default:
+          - service: rest_command.launch_app_device
+            data:
+              device_ip: "{{ device_ip }}"
+              package_name: "{{ package_name }}"
+```
+
+### Script: Launch YouTube Video
+
+```yaml
+script:
+  launch_youtube_video:
+    alias: Launch YouTube Video
+    fields:
+      device_ip:
+        description: Device IP address
+        example: "192.168.1.100"
+      video_id:
+        description: YouTube video ID
+        example: "dQw4w9WgXcQ"
+    sequence:
+      - service: rest_command.launch_app_with_intent
+        data:
+          device_ip: "{{ device_ip }}"
+          package_name: "com.google.android.youtube"
+          action: "android.intent.action.VIEW"
+          data: "vnd.youtube://{{ video_id }}"
+```
+
+### Script: Open URL
+
+```yaml
+script:
+  display_open_url:
+    alias: Display Open URL
+    fields:
+      device_ip:
+        description: Device IP address
+        example: "192.168.1.100"
+      url:
+        description: URL to open
+        example: "https://example.com"
+    sequence:
+      - service: rest_command.launch_app_with_intent
+        data:
+          device_ip: "{{ device_ip }}"
+          package_name: "com.android.chrome"
+          action: "android.intent.action.VIEW"
+          data: "{{ url }}"
 ```
 
 ---
 
 ## Automation Examples
 
-### Example 1: Launch App on Schedule
-
-Launch YouTube on all displays at 6 PM every day:
+### Example 1: Schedule-Based Content Rotation
 
 ```yaml
 automation:
-  - alias: "Evening YouTube on All Displays"
+  - alias: Display Schedule - Morning News
     trigger:
-      - platform: time
-        at: "18:00:00"
+      platform: time
+      at: "07:00:00"
     action:
-      - service: rest_command.launch_app_device
-        data:
-          device_ip: "192.168.1.101"
-          package_name: "com.google.android.youtube.tv"
-      - service: rest_command.launch_app_device
-        data:
-          device_ip: "192.168.1.102"
-          package_name: "com.google.android.youtube.tv"
-      - service: rest_command.launch_app_device
-        data:
-          device_ip: "192.168.1.103"
-          package_name: "com.google.android.youtube.tv"
+      service: script.launch_display_app
+      data:
+        device: "Living Room (192.168.1.100)"
+        app: "YouTube (com.google.android.youtube)"
+  
+  - alias: Display Schedule - Evening Netflix
+    trigger:
+      platform: time
+      at: "19:00:00"
+    action:
+      service: script.launch_display_app
+      data:
+        device: "Living Room (192.168.1.100)"
+        app: "Netflix (com.netflix.mediaclient)"
 ```
 
-### Example 2: Movie Mode
-
-Launch Netflix on living room TV when movie mode is activated:
+### Example 2: Motion-Activated Display
 
 ```yaml
 automation:
-  - alias: "Launch Netflix on Movie Mode"
+  - alias: Display Wake on Motion
     trigger:
-      - platform: state
-        entity_id: input_boolean.movie_mode
-        to: "on"
+      platform: state
+      entity_id: binary_sensor.living_room_motion
+      to: "on"
+    condition:
+      condition: time
+      after: "06:00:00"
+      before: "23:00:00"
     action:
-      - service: rest_command.launch_app_device
-        data:
-          device_ip: "192.168.1.101"
-          package_name: "com.netflix.ninja"
+      service: script.launch_display_app
+      data:
+        device: "Living Room (192.168.1.100)"
+        app: "Home Assistant (io.homeassistant.companion.android)"
 ```
 
-### Example 3: Motion-Triggered Display
-
-Launch Plex when motion is detected:
+### Example 3: Presence-Based Automation
 
 ```yaml
 automation:
-  - alias: "Launch Plex on Motion"
+  - alias: Display Welcome Home
     trigger:
-      - platform: state
-        entity_id: binary_sensor.kitchen_motion
-        to: "on"
+      platform: state
+      entity_id: person.john
+      to: "home"
     action:
-      - service: rest_command.launch_app_device
-        data:
-          device_ip: "192.168.1.102"
-          package_name: "com.plexapp.android"
+      service: script.launch_youtube_video
+      data:
+        device_ip: "192.168.1.100"
+        video_id: "{{ states('sensor.favorite_video_id') }}"
 ```
 
-### Example 4: Launch YouTube Video with Deep Link
-
-Open a specific YouTube video using intent:
+### Example 4: Manual Control Dashboard
 
 ```yaml
-automation:
-  - alias: "Play YouTube Live Stream"
-    trigger:
-      - platform: state
-        entity_id: sensor.live_stream_active
-        to: "on"
-    action:
-      - service: rest_command.launch_app_with_intent
-        data:
-          device_ip: "192.168.1.101"
-          package_name: "com.google.android.youtube"
-          action: "android.intent.action.VIEW"
-          data: "vnd.youtube://{{ states('sensor.youtube_video_id') }}"
+# In your Lovelace dashboard
+type: vertical-stack
+cards:
+  - type: entities
+    title: Display Launcher Control
+    entities:
+      - entity: input_select.display_launcher_device
+      - entity: input_select.display_launcher_app
+  - type: button
+    name: Launch
+    tap_action:
+      action: call-service
+      service: script.launch_display_app
+      service_data:
+        device: "{{ states('input_select.display_launcher_device') }}"
+        app: "{{ states('input_select.display_launcher_app') }}"
 ```
 
-### Example 5: Return to Launcher
-
-Return all displays to the launcher (home screen):
+### Example 5: Rotate YouTube Live Streams
 
 ```yaml
 automation:
-  - alias: "Return All Displays to Home"
+  - alias: Rotate Live Streams
     trigger:
-      - platform: time
-        at: "23:00:00"
+      platform: time_pattern
+      minutes: "/15"  # Every 15 minutes
     action:
-      - service: rest_command.launch_app_device
-        data:
-          device_ip: "192.168.1.101"
-          package_name: "com.tpn.displaylauncher"
-      - service: rest_command.launch_app_device
-        data:
-          device_ip: "192.168.1.102"
-          package_name: "com.tpn.displaylauncher"
-      - service: rest_command.launch_app_device
-        data:
-          device_ip: "192.168.1.103"
-          package_name: "com.tpn.displaylauncher"
-```
-
-### Example 6: Weather-Based Content
-
-Launch weather app when it's raining:
-
-```yaml
-automation:
-  - alias: "Show Weather on Rainy Days"
-    trigger:
-      - platform: state
-        entity_id: weather.home
-        attribute: condition
-        to: "rainy"
-    action:
-      - service: rest_command.launch_app_device
-        data:
-          device_ip: "192.168.1.103"
-          package_name: "com.google.android.googlequicksearchbox"
+      service: script.launch_youtube_video
+      data:
+        device_ip: "192.168.1.100"
+        video_id: "{{ states('sensor.current_live_stream') }}"
 ```
 
 ---
 
-## Advanced Usage
+## Advanced Examples
 
-### Using Intent Actions
-
-The `/api/launch-intent` endpoint supports Android intent actions for advanced app launching.
-
-**Common Intent Actions:**
-
-- `android.intent.action.VIEW` - View content (URLs, videos, etc.)
-- `android.intent.action.MAIN` - Launch main activity
-- `android.intent.action.SEARCH` - Open search
-
-#### Open URL in Browser
+### Multi-Device Synchronized Launch
 
 ```yaml
-service: rest_command.launch_app_with_intent
-data:
-  device_ip: "192.168.1.101"
-  package_name: "com.android.chrome"
-  action: "android.intent.action.VIEW"
-  data: "https://www.example.com"
+script:
+  launch_all_displays_sync:
+    alias: Launch All Displays (Synchronized)
+    fields:
+      app:
+        description: App package name
+        example: "com.android.chrome"
+    sequence:
+      - parallel:
+          - service: rest_command.launch_app_device
+            data:
+              device_ip: "192.168.1.100"
+              package_name: "{{ app }}"
+          - service: rest_command.launch_app_device
+            data:
+              device_ip: "192.168.1.101"
+              package_name: "{{ app }}"
+          - service: rest_command.launch_app_device
+            data:
+              device_ip: "192.168.1.102"
+              package_name: "{{ app }}"
 ```
 
-#### Open YouTube Channel
+### Dynamic YouTube Playlist Rotation
 
 ```yaml
-service: rest_command.launch_app_with_intent
-data:
-  device_ip: "192.168.1.101"
-  package_name: "com.google.android.youtube.tv"
-  action: "android.intent.action.VIEW"
-  data: "vnd.youtube://user/USERNAME"
+automation:
+  - alias: YouTube Playlist Rotation
+    trigger:
+      platform: time_pattern
+      minutes: "/10"
+    action:
+      service: script.launch_youtube_video
+      data:
+        device_ip: "192.168.1.100"
+        video_id: >
+          {% set videos = [
+            'dQw4w9WgXcQ',
+            'oHg5SJYRHA0',
+            'L_jWHffIx5E'
+          ] %}
+          {{ videos | random }}
 ```
 
----
-
-## Testing
-
-### Test REST Commands in Developer Tools
-
-1. Go to **Developer Tools** → **Services**
-2. Select `rest_command.launch_app_device`
-3. Enter service data:
+### Conditional Content Based on Time
 
 ```yaml
-device_ip: "192.168.1.101"
-package_name: "com.google.android.youtube.tv"
-```
-
-4. Click **Call Service**
-
-### Test with cURL
-
-```bash
-# Basic launch
-curl -X POST http://192.168.1.101:9091/api/launch \
-  -H "Content-Type: application/json" \
-  -d '{"packageName":"com.google.android.youtube.tv"}'
-
-# Launch with intent
-curl -X POST http://192.168.1.101:9091/api/launch-intent \
-  -H "Content-Type: application/json" \
-  -d '{"packageName":"com.google.android.youtube","action":"android.intent.action.VIEW","data":"vnd.youtube://dQw4w9WgXcQ"}'
+automation:
+  - alias: Smart Display Content
+    trigger:
+      platform: time_pattern
+      hours: "*"
+    action:
+      choose:
+        # Morning: News
+        - conditions:
+            - condition: time
+              after: "06:00:00"
+              before: "12:00:00"
+          sequence:
+            - service: script.launch_display_app
+              data:
+                device: "Living Room (192.168.1.100)"
+                app: "YouTube (com.google.android.youtube)"
+        
+        # Afternoon: Home Dashboard
+        - conditions:
+            - condition: time
+              after: "12:00:00"
+              before: "18:00:00"
+          sequence:
+            - service: script.launch_display_app
+              data:
+                device: "Living Room (192.168.1.100)"
+                app: "Home Assistant (io.homeassistant.companion.android)"
+        
+        # Evening: Entertainment
+        - conditions:
+            - condition: time
+              after: "18:00:00"
+              before: "23:00:00"
+          sequence:
+            - service: script.launch_display_app
+              data:
+                device: "Living Room (192.168.1.100)"
+                app: "Netflix (com.netflix.mediaclient)"
 ```
 
 ---
 
 ## Troubleshooting
 
-### 404 Errors
+### REST Command Fails
 
-- Verify Display Launcher is running on the device
-- Check the endpoint: use `/api/launch` not `/launch`
-- Ensure port 9091 is accessible
+**Check connection:**
 
-### 400 Errors
+```bash
+curl http://192.168.1.100:9091/api/apps
+```
 
-- Check JSON payload format
-- Verify package name is correct
-- Test with cURL first
+**Enable logging:**
+
+```yaml
+logger:
+  default: info
+  logs:
+    homeassistant.components.rest_command: debug
+```
 
 ### App Doesn't Launch
 
-- Verify package name: `adb shell pm list packages | grep appname`
-- Check if app is installed on the device
-- Try launching manually from device first
+1. Verify package name is correct
+2. Check Display Launcher is set as default launcher
+3. Test manually via web interface first
+4. Check Home Assistant logs
 
-### Connection Timeouts
+### Template Errors
 
-- Verify device IP address is correct
-- Check network connectivity
-- Ensure firewall allows port 9091
+Test templates in Developer Tools → Template:
 
----
+```jinja
+{% set device = "Living Room (192.168.1.100)" %}
+{{ device.split("(")[1].split(")")[0] }}
+```
 
-## Finding Package Names
+### Service Not Found
 
-To find package names for apps on your device:
+Restart Home Assistant after adding REST commands:
 
-```bash
-# List all installed packages
-adb shell pm list packages
-
-# Search for specific app
-adb shell pm list packages | grep youtube
-
-# Get currently running app
-adb shell dumpsys window windows | grep -E 'mCurrentFocus'
+```
+Developer Tools → YAML → Restart
 ```
 
 ---
 
-## API Reference
+## Complete Example Configuration
 
-### Endpoints
+Save as `packages/display_launcher.yaml`:
 
-#### `GET /`
-Web UI interface for manual control
+```yaml
+# Display Launcher Integration Package
 
-#### `GET /api/apps`
-List all installed apps
+input_select:
+  display_device:
+    name: Display Device
+    options:
+      - All Devices
+      - Living Room (192.168.1.100)
+      - Kitchen (192.168.1.101)
+    initial: All Devices
+    icon: mdi:television
+  
+  display_app:
+    name: Display App
+    options:
+      - Chrome (com.android.chrome)
+      - YouTube (com.google.android.youtube)
+      - Netflix (com.netflix.mediaclient)
+    icon: mdi:application
 
-**Response:**
-```json
-[
-  {
-    "name": "YouTube",
-    "packageName": "com.google.android.youtube.tv"
-  }
-]
-```
+rest_command:
+  launch_app_device:
+    url: "http://{{ device_ip }}:9091/api/launch"
+    method: POST
+    content_type: "application/json"
+    payload: '{"packageName":"{{ package_name }}"}'
+  
+  launch_app_with_intent:
+    url: "http://{{ device_ip }}:9091/api/launch-intent"
+    method: POST
+    content_type: "application/json"
+    payload: '{"packageName":"{{ package_name }}","action":"{{ action }}","data":"{{ data }}"}'
 
-#### `POST /api/launch`
-Launch an app
+script:
+  launch_display:
+    alias: Launch Display App
+    fields:
+      device:
+        description: Device
+      app:
+        description: App
+    sequence:
+      - variables:
+          device_ip: >
+            {% if "All" not in device %}
+              {{ device.split("(")[1].split(")")[0] }}
+            {% else %}
+              ""
+            {% endif %}
+          package_name: >
+            {{ app.split("(")[1].split(")")[0] }}
+      - service: rest_command.launch_app_device
+        data:
+          device_ip: "{{ device_ip if device_ip else '192.168.1.100' }}"
+          package_name: "{{ package_name }}"
 
-**Request:**
-```json
-{
-  "packageName": "com.google.android.youtube.tv"
-}
-```
-
-#### `POST /api/launch-intent`
-Launch with intent
-
-**Request:**
-```json
-{
-  "packageName": "com.google.android.youtube",
-  "action": "android.intent.action.VIEW",
-  "data": "vnd.youtube://dQw4w9WgXcQ"
-}
+automation:
+  - alias: Display Morning Routine
+    trigger:
+      platform: time
+      at: "07:00:00"
+    action:
+      service: script.launch_display
+      data:
+        device: "Living Room (192.168.1.100)"
+        app: "YouTube (com.google.android.youtube)"
 ```
 
 ---
 
-## Security Considerations
+## Additional Resources
 
-- Display Launcher API has no authentication
-- Use only on trusted local networks
-- Consider network isolation for displays
-- Do not expose port 9091 to the internet
-- Use static IPs or DHCP reservations
-
----
-
-## Tips & Best Practices
-
-- **Use Static IPs:** Set static IPs or DHCP reservations for displays
-- **Test First:** Always test commands in Developer Tools before creating automations
-- **Error Handling:** Add conditions to check if commands succeed
-- **Logging:** Enable Home Assistant logging to debug issues
-- **Backup:** Keep backups of your Home Assistant configuration
-- **Groups:** Create device groups for bulk operations
-- **Templates:** Use templates for dynamic package names or IPs
+- [Display Launcher API Reference](./API.md)
+- [Display Launcher README](./README.md)
+- [Home Assistant REST Command Documentation](https://www.home-assistant.io/integrations/rest_command/)
+- [Home Assistant Templating](https://www.home-assistant.io/docs/configuration/templating/)
