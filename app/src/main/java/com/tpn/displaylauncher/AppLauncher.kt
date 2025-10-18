@@ -5,13 +5,15 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.core.content.FileProvider
+import java.io.File
 
 data class AppInfo(
     val name: String,
     val packageName: String
 )
 
-class AppLauncher(private val context: Context) {
+class AppLauncher(val context: Context) {
 
     fun getInstalledApps(): List<AppInfo> {
         val packageManager = context.packageManager
@@ -69,6 +71,58 @@ class AppLauncher(private val context: Context) {
             }
         } catch (e: Exception) {
             false
+        }
+    }
+
+    fun uninstallApp(packageName: String): Boolean {
+        return try {
+            val intent = Intent(context, UninstallActivity::class.java).apply {
+                putExtra("packageName", packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DisplayLauncher", "Uninstall error: ${e.message}")
+            false
+        }
+    }
+
+
+    fun installApkFromFile(apkFile: File): Boolean {
+        return try {
+            val intent = Intent(context, InstallActivity::class.java).apply {
+                putExtra("apkPath", apkFile.absolutePath)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DisplayLauncher", "Install error: ${e.message}")
+            try {
+                apkFile.delete()
+            } catch (e: Exception) {
+                // Ignore
+            }
+            false
+        }
+    }
+
+
+    fun cleanupOldApks() {
+        try {
+            val apkDir = File(context.cacheDir, "apk")
+            if (apkDir.exists()) {
+                val now = System.currentTimeMillis()
+                apkDir.listFiles()?.forEach { file ->
+                    // Delete files older than 10 minutes
+                    if (now - file.lastModified() > 600000) {
+                        file.delete()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore cleanup errors
         }
     }
 }

@@ -3,6 +3,7 @@ package com.tpn.displaylauncher
 import fi.iki.elonen.NanoHTTPD
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import java.io.File
 
 class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoHTTPD(port) {
 
@@ -17,6 +18,8 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             uri == "/api/apps" && method == Method.GET -> getApps()
             uri == "/api/launch" && method == Method.POST -> launchApp(session)
             uri == "/api/launch-intent" && method == Method.POST -> launchAppWithIntent(session)
+            uri == "/api/uninstall" && method == Method.POST -> uninstallApp(session)
+            uri == "/api/upload-apk" && method == Method.POST -> uploadApk(session)
             else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
         }
     }
@@ -66,6 +69,27 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             outline: none;
             border-color: #667eea;
         }
+        .upload-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        .upload-section h2 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .file-input {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 2px dashed #667eea;
+            border-radius: 6px;
+            background: white;
+        }
         .app-list { display: grid; gap: 12px; }
         .app-item {
             display: flex;
@@ -90,6 +114,10 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             font-size: 12px;
             color: #666;
         }
+        .app-actions {
+            display: flex;
+            gap: 8px;
+        }
         .launch-btn {
             padding: 10px 24px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -107,6 +135,21 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
         }
         .launch-btn:active {
             transform: translateY(0);
+        }
+        .uninstall-btn {
+            padding: 10px 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .uninstall-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
         }
         .loading { text-align: center; padding: 40px; color: #666; }
         .message {
@@ -127,6 +170,13 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
         </div>
         <div class="content">
             <div id="message" class="message"></div>
+            
+            <div class="upload-section">
+                <h2>📦 Install APK</h2>
+                <input type="file" id="apkFile" accept=".apk" class="file-input">
+                <button onclick="uploadApk()" class="launch-btn">Upload & Install</button>
+            </div>
+            
             <input type="text" id="searchBox" class="search-box" placeholder="Search apps...">
             <div id="appList" class="loading">Loading apps...</div>
         </div>
@@ -154,7 +204,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             
             appList.className = 'app-list';
             appList.innerHTML = apps.map(function(app) {
-                return '<div class="app-item"><div class="app-info"><h3>' + app.name + '</h3><p>' + app.packageName + '</p></div><button class="launch-btn" onclick="launchApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Launch</button></div>';
+                return '<div class="app-item"><div class="app-info"><h3>' + app.name + '</h3><p>' + app.packageName + '</p></div><div class="app-actions"><button class="launch-btn" onclick="launchApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Launch</button><button class="uninstall-btn" onclick="uninstallApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Uninstall</button></div></div>';
             }).join('');
         }
         
@@ -171,6 +221,57 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                            result.success ? 'Launched ' + appName : result.message);
             } catch (error) {
                 showMessage('error', 'Failed to launch app');
+            }
+        }
+        
+        async function uninstallApp(packageName, appName) {
+            if (!confirm('Uninstall ' + appName + '?')) return;
+            
+            try {
+                const response = await fetch('/api/uninstall', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ packageName: packageName })
+                });
+                
+                const result = await response.json();
+                showMessage(result.success ? 'success' : 'error', result.message);
+                
+                if (result.success) {
+                    setTimeout(loadApps, 2000);
+                }
+            } catch (error) {
+                showMessage('error', 'Failed to uninstall app');
+            }
+        }
+        
+        async function uploadApk() {
+            const fileInput = document.getElementById('apkFile');
+            if (!fileInput.files.length) {
+                showMessage('error', 'Please select an APK file');
+                return;
+            }
+            
+            showMessage('success', 'Uploading APK...');
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                const response = await fetch('/api/upload-apk', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                showMessage(result.success ? 'success' : 'error', result.message);
+                
+                if (result.success) {
+                    fileInput.value = '';
+                    setTimeout(loadApps, 3000);
+                }
+            } catch (error) {
+                showMessage('error', 'Failed to upload APK');
             }
         }
         
@@ -250,6 +351,66 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 createJsonResponse(false, "Failed to launch app with intent")
             }
         } catch (e: Exception) {
+            return createJsonResponse(false, "Error: ${e.message}")
+        }
+    }
+
+    private fun uninstallApp(session: IHTTPSession): Response {
+        val map = HashMap<String, String>()
+        try {
+            session.parseBody(map)
+            val body = map["postData"] ?: ""
+            val jsonObject = gson.fromJson(body, JsonObject::class.java)
+            val packageName = jsonObject.get("packageName")?.asString
+
+            if (packageName.isNullOrEmpty()) {
+                return createJsonResponse(false, "Package name is required")
+            }
+
+            val success = appLauncher.uninstallApp(packageName)
+            return if (success) {
+                createJsonResponse(true, "Uninstall dialog opened")
+            } else {
+                createJsonResponse(false, "Failed to open uninstall dialog")
+            }
+        } catch (e: Exception) {
+            return createJsonResponse(false, "Error: ${e.message}")
+        }
+    }
+
+    private fun uploadApk(session: IHTTPSession): Response {
+        var apkFile: File? = null
+        try {
+            val files = HashMap<String, String>()
+            session.parseBody(files)
+
+            val tempFile = files["file"]
+            if (tempFile == null) {
+                return createJsonResponse(false, "No file uploaded")
+            }
+
+            // Create APK cache directory
+            val apkDir = File(appLauncher.context.cacheDir, "apk")
+            if (!apkDir.exists()) apkDir.mkdirs()
+
+            // Save uploaded file
+            apkFile = File(apkDir, "uploaded_${System.currentTimeMillis()}.apk")
+            File(tempFile).copyTo(apkFile, overwrite = true)
+
+            // Delete temp file
+            File(tempFile).delete()
+
+            // Trigger install (handles cleanup internally)
+            val success = appLauncher.installApkFromFile(apkFile)
+
+            return if (success) {
+                createJsonResponse(true, "Install dialog opened for uploaded APK")
+            } else {
+                createJsonResponse(false, "Failed to open install dialog")
+            }
+        } catch (e: Exception) {
+            // Clean up on error
+            apkFile?.delete()
             return createJsonResponse(false, "Error: ${e.message}")
         }
     }
