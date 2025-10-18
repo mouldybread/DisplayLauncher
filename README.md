@@ -9,6 +9,7 @@ A headless Android launcher designed for digital signage, kiosks, and remote-con
 > ❌ **DO NOT** port forward 9091 to the internet  
 > ❌ **DO NOT** use on untrusted networks (public WiFi, etc.)  
 > ❌ **DO NOT** assume any built-in security exists  
+> ⚠️ **NEW:** This app can install/uninstall APKs remotely - use only on trusted networks!
 
 ## Overview
 
@@ -24,11 +25,13 @@ Display Launcher runs as a minimal, invisible home screen that allows you to rem
 
 For complete Home Assistant setup and automation examples, see the [Home Assistant Integration Guide](./HomeAssistant.md).
 
-
 ## Features
 
 - ✅ Web-based API for programmatic app launching
 - ✅ Browser interface for manual control
+- ✅ **NEW:** Upload and install APK files via web interface
+- ✅ **NEW:** Uninstall apps remotely from web interface
+- ✅ Intent-based app launching (deep links, YouTube videos, URLs)
 - ✅ Headless operation - Shows black screen when not needed
 - ✅ Persistent background service - Works even when other apps are running
 - ✅ Triple-tap gesture to access settings when needed
@@ -36,11 +39,13 @@ For complete Home Assistant setup and automation examples, see the [Home Assista
 
 ## How It Works
 
-Display Launcher consists of three main components:
+Display Launcher consists of five main components:
 
 1. **MainActivity** - Minimal UI shown only when needed (triple-tap center screen)
 2. **LauncherService** - Foreground service that keeps the web server running
 3. **LauncherWebServer** - HTTP server on port 9091 for remote control
+4. **InstallActivity** - Transparent activity for APK installation
+5. **UninstallActivity** - Transparent activity for app uninstallation
 
 When apps are launched via the API, they come to the foreground automatically. The launcher itself remains invisible in the background.
 
@@ -64,7 +69,7 @@ When apps are launched via the API, they come to the foreground automatically. T
 
 ### Setting as Default Launcher (ADB Method)
 
-```bash
+```
 adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
 ```
 
@@ -84,6 +89,8 @@ The web interface provides:
 
 - List of all installed user apps
 - One-click launch buttons
+- **NEW:** One-click uninstall buttons
+- **NEW:** APK file upload and installation
 - Search functionality
 - Real-time status messages
 
@@ -91,7 +98,7 @@ The web interface provides:
 
 #### Get list of installed apps
 
-```bash
+```
 GET http://[device-ip]:9091/api/apps
 ```
 
@@ -101,15 +108,14 @@ GET http://[device-ip]:9091/api/apps
 [
   {
     "name": "Chrome",
-    "packageName": "com.android.chrome",
-    "isSystemApp": false
+    "packageName": "com.android.chrome"
   }
 ]
 ```
 
 #### Launch an app
 
-```bash
+```
 POST http://[device-ip]:9091/api/launch
 Content-Type: application/json
 
@@ -127,6 +133,76 @@ Content-Type: application/json
 }
 ```
 
+#### Launch an app with intent (NEW)
+
+```
+POST http://[device-ip]:9091/api/launch-intent
+Content-Type: application/json
+
+{
+  "packageName": "com.google.android.youtube",
+  "action": "android.intent.action.VIEW",
+  "data": "vnd.youtube://dQw4w9WgXcQ"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "App launched successfully with intent"
+}
+```
+
+**Intent Examples:**
+
+- YouTube video: `"data": "vnd.youtube://VIDEO_ID"`
+- URL: `"data": "https://example.com"`
+- Deep link: `"data": "app://path/to/content"`
+
+#### Uninstall an app (NEW)
+
+```
+POST http://[device-ip]:9091/api/uninstall
+Content-Type: application/json
+
+{
+  "packageName": "com.example.app"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Uninstall dialog opened"
+}
+```
+
+**Note:** The uninstall confirmation dialog appears on the device screen for security.
+
+#### Upload and install APK (NEW)
+
+```
+POST http://[device-ip]:9091/api/upload-apk
+Content-Type: multipart/form-data
+
+(Form data with 'file' field containing APK)
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Install dialog opened for uploaded APK"
+}
+```
+
+**Note:** The installation dialog appears on the device screen. Uploaded APK files are automatically cleaned up after 5 seconds.
+
 ### Examples
 
 #### cURL
@@ -136,6 +212,20 @@ Content-Type: application/json
 curl -X POST http://192.168.1.100:9091/api/launch \\
   -H "Content-Type: application/json" \\
   -d '{"packageName":"com.android.chrome"}'
+
+# Launch YouTube video
+curl -X POST http://192.168.1.100:9091/api/launch-intent \\
+  -H "Content-Type: application/json" \\
+  -d '{"packageName":"com.google.android.youtube","action":"android.intent.action.VIEW","data":"vnd.youtube://dQw4w9WgXcQ"}'
+
+# Uninstall an app
+curl -X POST http://192.168.1.100:9091/api/uninstall \\
+  -H "Content-Type: application/json" \\
+  -d '{"packageName":"com.example.app"}'
+
+# Upload APK
+curl -X POST http://192.168.1.100:9091/api/upload-apk \\
+  -F "file=@/path/to/app.apk"
 ```
 
 #### Python
@@ -149,6 +239,23 @@ response = requests.post(
     json={'packageName': 'com.android.chrome'}
 )
 print(response.json())
+
+# Launch with intent
+response = requests.post(
+    'http://192.168.1.100:9091/api/launch-intent',
+    json={
+        'packageName': 'com.google.android.youtube',
+        'action': 'android.intent.action.VIEW',
+        'data': 'vnd.youtube://dQw4w9WgXcQ'
+    }
+)
+print(response.json())
+
+# Upload APK
+with open('app.apk', 'rb') as f:
+    files = {'file': f}
+    response = requests.post('http://192.168.1.100:9091/api/upload-apk', files=files)
+    print(response.json())
 ```
 
 #### JavaScript
@@ -160,8 +267,31 @@ fetch('http://192.168.1.100:9091/api/launch', {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ packageName: 'com.android.chrome' })
 })
-.then(r => r.json())
-.then(data => console.log(data));
+  .then(r => r.json())
+  .then(data => console.log(data));
+
+// Launch with intent
+fetch('http://192.168.1.100:9091/api/launch-intent', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    packageName: 'com.google.android.youtube',
+    action: 'android.intent.action.VIEW',
+    data: 'vnd.youtube://dQw4w9WgXcQ'
+  })
+})
+  .then(r => r.json())
+  .then(data => console.log(data));
+
+// Upload APK
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+fetch('http://192.168.1.100:9091/api/upload-apk', {
+  method: 'POST',
+  body: formData
+})
+  .then(r => r.json())
+  .then(data => console.log(data));
 ```
 
 ---
@@ -246,6 +376,10 @@ Settings → Apps → Display Launcher → Battery → Unrestricted
 
 The web API has no authentication. Anyone on the network can control the device. Suitable for trusted networks only.
 
+### 📦 Install/Uninstall Requires User Confirmation (NEW)
+
+Android security requires user confirmation for app installation and uninstallation. The dialogs appear on the device screen and must be approved manually.
+
 ---
 
 ## Permissions
@@ -256,6 +390,8 @@ The web API has no authentication. Anyone on the network can control the device.
 | `FOREGROUND_SERVICE` | Keeps service running |
 | `FOREGROUND_SERVICE_SPECIAL_USE` | Android 14+ requirement |
 | `POST_NOTIFICATIONS` | Shows foreground service notification |
+| `REQUEST_INSTALL_PACKAGES` | **NEW:** Allows APK installation |
+| `REQUEST_DELETE_PACKAGES` | **NEW:** Allows app uninstallation |
 | `HOME` category intent filter | Allows app to be a launcher |
 
 ---
@@ -287,6 +423,13 @@ The web API has no authentication. Anyone on the network can control the device.
 - Ensure tapping center of screen
 - Try tapping exact center multiple times
 
+### Install/Uninstall doesn't work (NEW)
+
+- Check that the install/uninstall dialog appears on the device screen
+- Verify permissions are granted in Android Settings
+- Check logcat for errors: `adb logcat | grep DisplayLauncher`
+- Ensure APK file is valid (for uploads)
+
 ---
 
 ## Technical Details
@@ -297,6 +440,7 @@ The web API has no authentication. Anyone on the network can control the device.
 - NanoHTTPD embedded web server
 - Gson for JSON serialization
 - Foreground Service for persistence
+- FileProvider for secure APK file handling
 
 ### Build Configuration
 
@@ -310,10 +454,12 @@ The web API has no authentication. Anyone on the network can control the device.
 
 ```
 com.tpn.displaylauncher/
-├── MainActivity.kt          # Main launcher activity with UI
-├── LauncherService.kt       # Foreground service
-├── LauncherWebServer.kt     # HTTP server implementation
-└── AppLauncher.kt           # App management logic
+├── MainActivity.kt              # Main launcher activity with UI
+├── LauncherService.kt           # Foreground service
+├── LauncherWebServer.kt         # HTTP server implementation
+├── AppLauncher.kt               # App management logic
+├── InstallActivity.kt           # APK installation handler (NEW)
+└── UninstallActivity.kt         # App uninstallation handler (NEW)
 ```
 
 ---
