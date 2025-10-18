@@ -204,7 +204,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             
             appList.className = 'app-list';
             appList.innerHTML = apps.map(function(app) {
-                return '<div class="app-item"><div class="app-info"><h3>' + app.name + '</h3><p>' + app.packageName + '</p></div><div class="app-actions"><button class="launch-btn" onclick="launchApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Launch</button><button class="uninstall-btn" onclick="uninstallApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Uninstall</button></div></div>';
+                return '<div class="app-item"><div class="app-info"><h3>' + app.name + '</h3><p>' + app.packageName + '</p></div><div class="app-actions"><button class="launch-btn" onclick="launchApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Open</button><button class="uninstall-btn" onclick="uninstallApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Uninstall</button></div></div>';
             }).join('');
         }
         
@@ -218,9 +218,9 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 
                 const result = await response.json();
                 showMessage(result.success ? 'success' : 'error', 
-                           result.success ? 'Launched ' + appName : result.message);
+                           result.success ? 'Opened ' + appName : result.message);
             } catch (error) {
-                showMessage('error', 'Failed to launch app');
+                showMessage('error', 'Failed to open app');
             }
         }
         
@@ -389,18 +389,14 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 return createJsonResponse(false, "No file uploaded")
             }
 
-            // Create APK cache directory
             val apkDir = File(appLauncher.context.cacheDir, "apk")
             if (!apkDir.exists()) apkDir.mkdirs()
 
-            // Save uploaded file
             apkFile = File(apkDir, "uploaded_${System.currentTimeMillis()}.apk")
             File(tempFile).copyTo(apkFile, overwrite = true)
 
-            // Delete temp file
             File(tempFile).delete()
 
-            // Trigger install (handles cleanup internally)
             val success = appLauncher.installApkFromFile(apkFile)
 
             return if (success) {
@@ -409,7 +405,6 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 createJsonResponse(false, "Failed to open install dialog")
             }
         } catch (e: Exception) {
-            // Clean up on error
             apkFile?.delete()
             return createJsonResponse(false, "Error: ${e.message}")
         }
