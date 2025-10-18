@@ -1,5 +1,6 @@
 package com.tpn.displaylauncher
 
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -52,6 +53,8 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun LauncherUI() {
+        val prefs = remember { getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE) }
+        var hasSeenUI by remember { mutableStateOf(prefs.getBoolean("has_seen_ui", false)) }
         var showUI by remember { mutableStateOf(false) }
         var lastTapTime by remember { mutableLongStateOf(0L) }
         var tapCount by remember { mutableIntStateOf(0) }
@@ -61,6 +64,13 @@ class MainActivity : ComponentActivity() {
 
         val allApps = remember { mutableStateOf(appLauncher.getInstalledApps()) }
         val totalItems = 3 + allApps.value.size
+
+        LaunchedEffect(showUI) {
+            if (showUI && !hasSeenUI) {
+                prefs.edit().putBoolean("has_seen_ui", true).apply()
+                hasSeenUI = true
+            }
+        }
 
         Box(
             modifier = Modifier
@@ -177,14 +187,16 @@ class MainActivity : ComponentActivity() {
                 )
                 .focusable()
         ) {
-            if (!showUI) {
+            if (!showUI && !hasSeenUI) {
                 Text(
                     text = "Tap center 3x to show settings",
                     color = Color.White.copy(alpha = 0.3f),
                     fontSize = 14.sp,
                     modifier = Modifier.align(Alignment.Center)
                 )
-            } else {
+            }
+
+            if (showUI) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
