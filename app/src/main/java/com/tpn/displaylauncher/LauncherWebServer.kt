@@ -16,6 +16,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             uri == "/" -> serveWebUI()
             uri == "/api/apps" && method == Method.GET -> getApps()
             uri == "/api/launch" && method == Method.POST -> launchApp(session)
+            uri == "/api/launch-intent" && method == Method.POST -> launchAppWithIntent(session)
             else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
         }
     }
@@ -221,6 +222,32 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 createJsonResponse(true, "App launched successfully")
             } else {
                 createJsonResponse(false, "Failed to launch app")
+            }
+        } catch (e: Exception) {
+            return createJsonResponse(false, "Error: ${e.message}")
+        }
+    }
+
+    private fun launchAppWithIntent(session: IHTTPSession): Response {
+        val map = HashMap<String, String>()
+        try {
+            session.parseBody(map)
+            val body = map["postData"] ?: ""
+            val jsonObject = gson.fromJson(body, JsonObject::class.java)
+
+            val packageName = jsonObject.get("packageName")?.asString
+            val action = jsonObject.get("action")?.asString
+            val data = jsonObject.get("data")?.asString
+
+            if (packageName.isNullOrEmpty()) {
+                return createJsonResponse(false, "Package name is required")
+            }
+
+            val success = appLauncher.launchAppWithIntent(packageName, action, data)
+            return if (success) {
+                createJsonResponse(true, "App launched successfully with intent")
+            } else {
+                createJsonResponse(false, "Failed to launch app with intent")
             }
         } catch (e: Exception) {
             return createJsonResponse(false, "Error: ${e.message}")
