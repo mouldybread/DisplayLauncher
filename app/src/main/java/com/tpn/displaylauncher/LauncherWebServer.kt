@@ -1,4 +1,4 @@
-package com.yourcompany.headlesslauncher
+package com.tpn.displaylauncher
 
 import fi.iki.elonen.NanoHTTPD
 import com.google.gson.Gson
@@ -27,7 +27,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Headless Launcher - Control Panel</title>
+    <title>Display Launcher - Control Panel</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -121,7 +121,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 Headless Launcher</h1>
+            <h1>🚀 Display Launcher</h1>
             <p class="subtitle">Control Panel - Launch apps remotely via API</p>
         </div>
         <div class="content">
@@ -152,17 +152,9 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             }
             
             appList.className = 'app-list';
-            appList.innerHTML = apps.map(app => `
-                <div class="app-item">
-                    <div class="app-info">
-                        <h3>${app.name}</h3>
-                        <p>${app.packageName}</p>
-                    </div>
-                    <button class="launch-btn" onclick="launchApp('${app.packageName}', '${app.name}')">
-                        Launch
-                    </button>
-                </div>
-            `).join('');
+            appList.innerHTML = apps.map(function(app) {
+                return '<div class="app-item"><div class="app-info"><h3>' + app.name + '</h3><p>' + app.packageName + '</p></div><button class="launch-btn" onclick="launchApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Launch</button></div>';
+            }).join('');
         }
         
         async function launchApp(packageName, appName) {
@@ -170,12 +162,12 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 const response = await fetch('/api/launch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ packageName })
+                    body: JSON.stringify({ packageName: packageName })
                 });
                 
                 const result = await response.json();
                 showMessage(result.success ? 'success' : 'error', 
-                           result.success ? `Launched ${appName}` : result.message);
+                           result.success ? 'Launched ' + appName : result.message);
             } catch (error) {
                 showMessage('error', 'Failed to launch app');
             }
@@ -183,17 +175,17 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
         
         function showMessage(type, text) {
             const msg = document.getElementById('message');
-            msg.className = `message ${type}`;
+            msg.className = 'message ' + type;
             msg.textContent = text;
-            setTimeout(() => msg.className = 'message', 3000);
+            setTimeout(function() { msg.className = 'message'; }, 3000);
         }
         
-        document.getElementById('searchBox').addEventListener('input', (e) => {
+        document.getElementById('searchBox').addEventListener('input', function(e) {
             const query = e.target.value.toLowerCase();
-            const filtered = allApps.filter(app => 
-                app.name.toLowerCase().includes(query) || 
-                app.packageName.toLowerCase().includes(query)
-            );
+            const filtered = allApps.filter(function(app) {
+                return app.name.toLowerCase().includes(query) || 
+                       app.packageName.toLowerCase().includes(query);
+            });
             renderApps(filtered);
         });
         
@@ -201,7 +193,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
     </script>
 </body>
 </html>
-        """.trimIndent()
+        """
 
         return newFixedLengthResponse(Response.Status.OK, "text/html", html)
     }
