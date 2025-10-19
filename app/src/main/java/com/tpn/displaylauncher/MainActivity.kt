@@ -96,28 +96,26 @@ class MainActivity : ComponentActivity() {
                                     lastTapTime = currentTime
                                     true
                                 } else {
-                                    // Execute action based on selected item
                                     when (selectedIndex) {
                                         0 -> {
-                                            // Set as Default Launcher
-                                            val intent = Intent(Intent.ACTION_MAIN).apply {
-                                                addCategory(Intent.CATEGORY_HOME)
+                                            try {
+                                                val intent = Intent(Settings.ACTION_HOME_SETTINGS)
+                                                startActivity(intent)
+                                            } catch (e: Exception) {
+                                                val intent = Intent(Settings.ACTION_SETTINGS)
+                                                startActivity(intent)
                                             }
-                                            startActivity(intent)
                                             true
                                         }
                                         1 -> {
-                                            // Open Android Settings
                                             startActivity(Intent(Settings.ACTION_SETTINGS))
                                             true
                                         }
                                         2 -> {
-                                            // Hide UI
                                             showUI = false
                                             true
                                         }
                                         else -> {
-                                            // Launch app
                                             val appIndex = selectedIndex - 3
                                             if (appIndex in allApps.value.indices) {
                                                 appLauncher.launchApp(allApps.value[appIndex].packageName)
@@ -221,10 +219,13 @@ class MainActivity : ComponentActivity() {
 
                     Button(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_MAIN).apply {
-                                addCategory(Intent.CATEGORY_HOME)
+                            try {
+                                val intent = Intent(Settings.ACTION_HOME_SETTINGS)
+                                startActivity(intent)
+                            } catch (e: Exception) {
+                                val intent = Intent(Settings.ACTION_SETTINGS)
+                                startActivity(intent)
                             }
-                            startActivity(intent)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
