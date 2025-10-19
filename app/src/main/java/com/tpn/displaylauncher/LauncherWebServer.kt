@@ -1,5 +1,6 @@
 package com.tpn.displaylauncher
 
+import android.util.Log
 import fi.iki.elonen.NanoHTTPD
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -8,20 +9,33 @@ import java.io.File
 class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoHTTPD(port) {
 
     private val gson = Gson()
+    private val TAG = "LauncherWebServer"
 
     override fun serve(session: IHTTPSession): Response {
-        val uri = session.uri
-        val method = session.method
+        return try {
+            val uri = session.uri
+            val method = session.method
 
-        return when {
-            uri == "/" -> serveWebUI()
-            uri == "/api/apps" && method == Method.GET -> getApps()
-            uri == "/api/launch" && method == Method.POST -> launchApp(session)
-            uri == "/api/launch-intent" && method == Method.POST -> launchAppWithIntent(session)
-            uri == "/api/uninstall" && method == Method.POST -> uninstallApp(session)
-            uri == "/api/upload-apk" && method == Method.POST -> uploadApk(session)
-            else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
+            Log.d(TAG, "Request: $method $uri")
+
+            when {
+                uri == "/" -> serveWebUI()
+                uri == "/api/apps" && method == Method.GET -> getApps()
+                uri == "/api/launch" && method == Method.POST -> launchApp(session)
+                uri == "/api/launch-intent" && method == Method.POST -> launchAppWithIntent(session)
+                uri == "/api/uninstall" && method == Method.POST -> uninstallApp(session)
+                uri == "/api/upload-apk" && method == Method.POST -> uploadApk(session)
+                uri == "/api/health" && method == Method.GET -> healthCheck()
+                else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error serving request: ${e.message}", e)
+            createJsonResponse(false, "Server error: ${e.message}")
         }
+    }
+
+    private fun healthCheck(): Response {
+        return createJsonResponse(true, "Server is running")
     }
 
     private fun serveWebUI(): Response {
@@ -160,12 +174,25 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
         }
         .message.success { background: #d4edda; color: #155724; display: block; }
         .message.error { background: #f8d7da; color: #721c24; display: block; }
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 Display Launcher</h1>
+            <h1><span class="status-indicator"></span>🚀 Display Launcher</h1>
             <p class="subtitle">Control Panel - Launch apps remotely via API</p>
         </div>
         <div class="content">
@@ -184,15 +211,30 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
     
     <script>
         let allApps = [];
+        let healthCheckInterval;
         
         async function loadApps() {
             try {
                 const response = await fetch('/api/apps');
                 allApps = await response.json();
                 renderApps(allApps);
+                startHealthCheck();
             } catch (error) {
-                document.getElementById('appList').innerHTML = '<p style="color: red;">Error loading apps</p>';
+                document.getElementById('appList').innerHTML = '<p style="color: red;">Error loading apps. Server may be down.</p>';
+                setTimeout(loadApps, 5000);
             }
+        }
+        
+        function startHealthCheck() {
+            if (healthCheckInterval) clearInterval(healthCheckInterval);
+            healthCheckInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/health');
+                    if (!response.ok) throw new Error('Health check failed');
+                } catch (error) {
+                    console.error('Server health check failed');
+                }
+            }, 30000);
         }
         
         function renderApps(apps) {
@@ -204,7 +246,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             
             appList.className = 'app-list';
             appList.innerHTML = apps.map(function(app) {
-                return '<div class="app-item"><div class="app-info"><h3>' + app.name + '</h3><p>' + app.packageName + '</p></div><div class="app-actions"><button class="launch-btn" onclick="launchApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Open</button><button class="uninstall-btn" onclick="uninstallApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Uninstall</button></div></div>';
+                return '<div class="app-item"><div class="app-info"><h3>' + app.name + '</h3><p>' + app.packageName + '</p></div><div class="app-actions"><button class="launch-btn" onclick="launchApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Launch</button><button class="uninstall-btn" onclick="uninstallApp(\'' + app.packageName.replace(/'/g, "\\'") + '\', \'' + app.name.replace(/'/g, "\\'") + '\')">Uninstall</button></div></div>';
             }).join('');
         }
         
@@ -218,9 +260,9 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 
                 const result = await response.json();
                 showMessage(result.success ? 'success' : 'error', 
-                           result.success ? 'Opened ' + appName : result.message);
+                           result.success ? 'Launched ' + appName : result.message);
             } catch (error) {
-                showMessage('error', 'Failed to open app');
+                showMessage('error', 'Failed to launch app. Server may be down.');
             }
         }
         
@@ -241,7 +283,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                     setTimeout(loadApps, 2000);
                 }
             } catch (error) {
-                showMessage('error', 'Failed to uninstall app');
+                showMessage('error', 'Failed to uninstall app. Server may be down.');
             }
         }
         
@@ -271,7 +313,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                     setTimeout(loadApps, 3000);
                 }
             } catch (error) {
-                showMessage('error', 'Failed to upload APK');
+                showMessage('error', 'Failed to upload APK. Server may be down.');
             }
         }
         
@@ -301,9 +343,14 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
     }
 
     private fun getApps(): Response {
-        val apps = appLauncher.getInstalledApps()
-        val json = gson.toJson(apps)
-        return newFixedLengthResponse(Response.Status.OK, "application/json", json)
+        return try {
+            val apps = appLauncher.getInstalledApps()
+            val json = gson.toJson(apps)
+            newFixedLengthResponse(Response.Status.OK, "application/json", json)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting apps: ${e.message}", e)
+            createJsonResponse(false, "Error: ${e.message}")
+        }
     }
 
     private fun launchApp(session: IHTTPSession): Response {
@@ -325,6 +372,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 createJsonResponse(false, "Failed to launch app")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Error launching app: ${e.message}", e)
             return createJsonResponse(false, "Error: ${e.message}")
         }
     }
@@ -351,6 +399,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 createJsonResponse(false, "Failed to launch app with intent")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Error launching app with intent: ${e.message}", e)
             return createJsonResponse(false, "Error: ${e.message}")
         }
     }
@@ -374,6 +423,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 createJsonResponse(false, "Failed to open uninstall dialog")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Error uninstalling app: ${e.message}", e)
             return createJsonResponse(false, "Error: ${e.message}")
         }
     }
@@ -405,6 +455,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
                 createJsonResponse(false, "Failed to open install dialog")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Error uploading APK: ${e.message}", e)
             apkFile?.delete()
             return createJsonResponse(false, "Error: ${e.message}")
         }

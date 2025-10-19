@@ -87,37 +87,46 @@ class MainActivity : ComponentActivity() {
                                         if (tapCount >= 3) {
                                             showUI = true
                                             tapCount = 0
+                                            selectedIndex = 0
                                             return@onKeyEvent true
                                         }
                                     } else {
                                         tapCount = 1
                                     }
                                     lastTapTime = currentTime
+                                    true
                                 } else {
+                                    // Execute action based on selected item
                                     when (selectedIndex) {
                                         0 -> {
+                                            // Set as Default Launcher
                                             val intent = Intent(Intent.ACTION_MAIN).apply {
                                                 addCategory(Intent.CATEGORY_HOME)
                                             }
                                             startActivity(intent)
+                                            true
                                         }
                                         1 -> {
+                                            // Open Android Settings
                                             startActivity(Intent(Settings.ACTION_SETTINGS))
+                                            true
                                         }
                                         2 -> {
+                                            // Hide UI
                                             showUI = false
+                                            true
                                         }
                                         else -> {
+                                            // Launch app
                                             val appIndex = selectedIndex - 3
                                             if (appIndex in allApps.value.indices) {
                                                 appLauncher.launchApp(allApps.value[appIndex].packageName)
                                                 showUI = false
                                             }
+                                            true
                                         }
                                     }
-                                    return@onKeyEvent true
                                 }
-                                true
                             }
                             KeyEvent.KEYCODE_DPAD_DOWN -> {
                                 if (showUI) {
@@ -222,7 +231,12 @@ class MainActivity : ComponentActivity() {
                             .border(
                                 width = if (selectedIndex == 0) 3.dp else 0.dp,
                                 color = if (selectedIndex == 0) Color.White else Color.Transparent
-                            )
+                            ),
+                        colors = if (selectedIndex == 0) {
+                            ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.3f))
+                        } else {
+                            ButtonDefaults.buttonColors()
+                        }
                     ) {
                         Text("Set as Default Launcher")
                     }
@@ -238,7 +252,12 @@ class MainActivity : ComponentActivity() {
                             .border(
                                 width = if (selectedIndex == 1) 3.dp else 0.dp,
                                 color = if (selectedIndex == 1) Color.White else Color.Transparent
-                            )
+                            ),
+                        colors = if (selectedIndex == 1) {
+                            ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.3f))
+                        } else {
+                            ButtonDefaults.buttonColors()
+                        }
                     ) {
                         Text("Open Android Settings")
                     }
@@ -252,7 +271,12 @@ class MainActivity : ComponentActivity() {
                             .border(
                                 width = if (selectedIndex == 2) 3.dp else 0.dp,
                                 color = if (selectedIndex == 2) Color.White else Color.Transparent
-                            )
+                            ),
+                        colors = if (selectedIndex == 2) {
+                            ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.3f))
+                        } else {
+                            ButtonDefaults.buttonColors()
+                        }
                     ) {
                         Text("Hide UI")
                     }
