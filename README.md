@@ -4,7 +4,7 @@ A headless Android launcher designed for digital signage, kiosks, and remote-con
 
 > [!CAUTION]
 > This application has **NO built-in authentication or encryption**. The web server runs on port 9091 with **unrestricted access** to anyone who can reach the device on your network.
-> 
+>
 > ❌ **DO NOT** expose this app directly to the internet  
 > ❌ **DO NOT** port forward 9091 to the internet  
 > ❌ **DO NOT** use on untrusted networks (public WiFi, etc.)  
@@ -41,6 +41,7 @@ Display Launcher runs as a minimal, invisible home screen that allows you to rem
 - **Smart home displays** - Change dashboards on demand
 - **Presentation systems** - Switch between apps during demos
 - **Projector control** - Manage content from any device on your network
+- **Camera display systems** - Launch apps with specific configurations (e.g., specific camera views)
 
 ---
 
@@ -48,9 +49,9 @@ Display Launcher runs as a minimal, invisible home screen that allows you to rem
 
 - ✅ Web-based API for programmatic app launching
 - ✅ Browser interface for manual control
-- ✅ **NEW:** Upload and install APK files via web interface
-- ✅ **NEW:** Uninstall apps remotely from web interface
-- ✅ Intent-based app launching (deep links, YouTube videos, URLs)
+- ✅ Upload and install APK files via web interface
+- ✅ Uninstall apps remotely from web interface
+- ✅ **Intent-based app launching with extras support** (deep links, YouTube videos, URLs, app-specific parameters)
 - ✅ Headless operation - Shows black screen when not needed
 - ✅ Persistent background service - Works even when other apps are running
 - ✅ Triple-tap gesture to access settings when needed
@@ -69,6 +70,11 @@ Display Launcher consists of five main components:
 5. **UninstallActivity** - Transparent activity for app uninstallation
 
 When apps are launched via the API, they come to the foreground automatically. The launcher itself remains invisible in the background.
+
+**New:** Apps can now be launched with custom intent extras, enabling advanced integrations like:
+- Launching camera viewer apps with specific camera selected
+- Opening YouTube videos directly
+- Passing configuration parameters to apps
 
 ---
 
@@ -110,8 +116,8 @@ The web interface provides:
 
 - List of all installed user apps
 - One-click launch buttons
-- **NEW:** One-click uninstall buttons
-- **NEW:** APK file upload and installation
+- One-click uninstall buttons
+- APK file upload and installation
 - Search functionality
 - Real-time status messages
 
@@ -121,7 +127,7 @@ For complete API documentation, see the [API Reference](./API.md).
 
 #### Get list of installed apps
 
-```
+```http
 GET http://[device-ip]:9091/api/apps
 ```
 
@@ -138,10 +144,9 @@ GET http://[device-ip]:9091/api/apps
 
 #### Launch an app
 
-```
+```http
 POST http://[device-ip]:9091/api/launch
 Content-Type: application/json
-
 {
   "packageName": "com.android.chrome"
 }
@@ -156,16 +161,26 @@ Content-Type: application/json
 }
 ```
 
-#### Launch an app with intent (NEW)
+#### Launch an app with intent and extras (NEW/UPDATED)
 
-```
+```http
 POST http://[device-ip]:9091/api/launch-intent
 Content-Type: application/json
-
 {
-  "packageName": "com.google.android.youtube",
-  "action": "android.intent.action.VIEW",
-  "data": "vnd.youtube://dQw4w9WgXcQ"
+  "packageName": "com.tpn.streamviewer",
+  "action": "android.intent.action.MAIN",
+  "data": "",
+  "extra_string": "camera_name:FRONTDOOR"
+}
+```
+
+**Or with individual extra parameters:**
+
+```json
+{
+  "packageName": "com.tpn.streamviewer",
+  "action": "android.intent.action.MAIN",
+  "extra_camera_name": "FRONTDOOR"
 }
 ```
 
@@ -180,16 +195,28 @@ Content-Type: application/json
 
 **Intent Examples:**
 
-- YouTube video: `"data": "vnd.youtube://VIDEO_ID"`
-- URL: `"data": "https://example.com"`
-- Deep link: `"data": "app://path/to/content"`
+| Use Case            | Example                                                                                   |
+|---------------------|-----------------------------------------------------------------------------------------|
+| YouTube video       | `{"packageName":"com.google.android.youtube","action":"android.intent.action.VIEW","data":"vnd.youtube://VIDEO_ID"}` |
+| URL                 | `{"packageName":"com.android.chrome","action":"android.intent.action.VIEW","data":"https://example.com"}`         |
+| App with extras     | `{"packageName":"com.example.app","action":"android.intent.action.MAIN","extra_string":"key:value"}`              |
+| Camera app          | `{"packageName":"com.tpn.streamviewer","action":"android.intent.action.MAIN","extra_string":"camera_name:FRONT"}` |
 
-#### Uninstall an app (NEW)
+**Extra String Format:**
 
-```
+The `extra_string` parameter accepts comma-separated key:value pairs:
+- Single extra: `"extra_string": "camera_name:FRONTDOOR"`
+- Multiple extras: `"extra_string": "camera_name:FRONT,protocol:mse"`
+
+Alternatively, use individual `extra_*` parameters:
+- `"extra_camera_name": "FRONTDOOR"`
+- `"extra_protocol": "mse"`
+
+#### Uninstall an app
+
+```http
 POST http://[device-ip]:9091/api/uninstall
 Content-Type: application/json
-
 {
   "packageName": "com.example.app"
 }
@@ -206,12 +233,11 @@ Content-Type: application/json
 
 **Note:** The uninstall confirmation dialog appears on the device screen for security.
 
-#### Upload and install APK (NEW)
+#### Upload and install APK
 
-```
+```http
 POST http://[device-ip]:9091/api/upload-apk
 Content-Type: multipart/form-data
-
 (Form data with 'file' field containing APK)
 ```
 
@@ -224,7 +250,7 @@ Content-Type: multipart/form-data
 }
 ```
 
-**Note:** The installation dialog appears on the device screen. Uploaded APK files are automatically cleaned up after 5 seconds.
+**Note:** The installation dialog appears on the device screen. Uploaded APK files are automatically cleaned up after 10 minutes.
 
 ### Examples
 
@@ -232,23 +258,19 @@ Content-Type: multipart/form-data
 
 ```bash
 # Launch Chrome
-curl -X POST http://192.168.1.100:9091/api/launch \\
-  -H "Content-Type: application/json" \\
-  -d '{"packageName":"com.android.chrome"}'
+curl -X POST http://192.168.1.100:9091/api/launch   -H "Content-Type: application/json"   -d '{"packageName":"com.android.chrome"}'
 
 # Launch YouTube video
-curl -X POST http://192.168.1.100:9091/api/launch-intent \\
-  -H "Content-Type: application/json" \\
-  -d '{"packageName":"com.google.android.youtube","action":"android.intent.action.VIEW","data":"vnd.youtube://dQw4w9WgXcQ"}'
+curl -X POST http://192.168.1.100:9091/api/launch-intent   -H "Content-Type: application/json"   -d '{"packageName":"com.google.android.youtube","action":"android.intent.action.VIEW","data":"vnd.youtube://dQw4w9WgXcQ"}'
+
+# Launch camera app with specific camera
+curl -X POST http://192.168.1.100:9091/api/launch-intent   -H "Content-Type: application/json"   -d '{"packageName":"com.tpn.streamviewer","action":"android.intent.action.MAIN","data":"","extra_string":"camera_name:FRONTDOOR"}'
 
 # Uninstall an app
-curl -X POST http://192.168.1.100:9091/api/uninstall \\
-  -H "Content-Type: application/json" \\
-  -d '{"packageName":"com.example.app"}'
+curl -X POST http://192.168.1.100:9091/api/uninstall   -H "Content-Type: application/json"   -d '{"packageName":"com.example.app"}'
 
 # Upload APK
-curl -X POST http://192.168.1.100:9091/api/upload-apk \\
-  -F "file=@/path/to/app.apk"
+curl -X POST http://192.168.1.100:9091/api/upload-apk   -F "file=@/path/to/app.apk"
 ```
 
 #### Python
@@ -258,27 +280,28 @@ import requests
 
 # Launch an app
 response = requests.post(
-    'http://192.168.1.100:9091/api/launch',
-    json={'packageName': 'com.android.chrome'}
+  'http://192.168.1.100:9091/api/launch',
+  json={'packageName': 'com.android.chrome'}
 )
 print(response.json())
 
-# Launch with intent
+# Launch with intent and extras
 response = requests.post(
-    'http://192.168.1.100:9091/api/launch-intent',
-    json={
-        'packageName': 'com.google.android.youtube',
-        'action': 'android.intent.action.VIEW',
-        'data': 'vnd.youtube://dQw4w9WgXcQ'
-    }
+  'http://192.168.1.100:9091/api/launch-intent',
+  json={
+    'packageName': 'com.tpn.streamviewer',
+    'action': 'android.intent.action.MAIN',
+    'data': '',
+    'extra_string': 'camera_name:FRONTDOOR'
+  }
 )
 print(response.json())
 
 # Upload APK
 with open('app.apk', 'rb') as f:
-    files = {'file': f}
-    response = requests.post('http://192.168.1.100:9091/api/upload-apk', files=files)
-    print(response.json())
+  files = {'file': f}
+  response = requests.post('http://192.168.1.100:9091/api/upload-apk', files=files)
+  print(response.json())
 ```
 
 #### JavaScript
@@ -290,31 +313,32 @@ fetch('http://192.168.1.100:9091/api/launch', {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ packageName: 'com.android.chrome' })
 })
-  .then(r => r.json())
-  .then(data => console.log(data));
+.then(r => r.json())
+.then(data => console.log(data));
 
-// Launch with intent
+// Launch with intent and extras
 fetch('http://192.168.1.100:9091/api/launch-intent', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    packageName: 'com.google.android.youtube',
-    action: 'android.intent.action.VIEW',
-    data: 'vnd.youtube://dQw4w9WgXcQ'
+    packageName: 'com.tpn.streamviewer',
+    action: 'android.intent.action.MAIN',
+    data: '',
+    extra_string: 'camera_name:FRONTDOOR'
   })
 })
-  .then(r => r.json())
-  .then(data => console.log(data));
+.then(r => r.json())
+.then(data => console.log(data));
 
 // Upload APK
 const formData = new FormData();
-formData.append('file', fileInput.files[0]);
+formData.append('file', fileInput.files);
 fetch('http://192.168.1.100:9091/api/upload-apk', {
   method: 'POST',
   body: formData
 })
-  .then(r => r.json())
-  .then(data => console.log(data));
+.then(r => r.json())
+.then(data => console.log(data));
 ```
 
 ---
@@ -399,23 +423,27 @@ Settings → Apps → Display Launcher → Battery → Unrestricted
 
 The web API has no authentication. Anyone on the network can control the device. Suitable for trusted networks only.
 
-### 📦 Install/Uninstall Requires User Confirmation (NEW)
+### 📦 Install/Uninstall Requires User Confirmation
 
 Android security requires user confirmation for app installation and uninstallation. The dialogs appear on the device screen and must be approved manually.
+
+### 🔧 Intent Extras Format
+
+Intent extras are passed as strings. The receiving app must handle string-to-type conversion if needed.
 
 ---
 
 ## Permissions
 
-| Permission | Purpose |
-|------------|---------|
-| `INTERNET` | Required for web server |
-| `FOREGROUND_SERVICE` | Keeps service running |
-| `FOREGROUND_SERVICE_SPECIAL_USE` | Android 14+ requirement |
-| `POST_NOTIFICATIONS` | Shows foreground service notification |
-| `REQUEST_INSTALL_PACKAGES` | **NEW:** Allows APK installation |
-| `REQUEST_DELETE_PACKAGES` | **NEW:** Allows app uninstallation |
-| `HOME` category intent filter | Allows app to be a launcher |
+| Permission                       | Purpose                          |
+|-----------------------------------|----------------------------------|
+| `INTERNET`                       | Required for web server          |
+| `FOREGROUND_SERVICE`              | Keeps service running            |
+| `FOREGROUND_SERVICE_SPECIAL_USE`  | Android 14+ requirement          |
+| `POST_NOTIFICATIONS`              | Shows foreground service notification |
+| `REQUEST_INSTALL_PACKAGES`        | Allows APK installation          |
+| `REQUEST_DELETE_PACKAGES`         | Allows app uninstallation        |
+| `HOME` category intent filter     | Allows app to be a launcher      |
 
 ---
 
@@ -446,12 +474,19 @@ Android security requires user confirmation for app installation and uninstallat
 - Ensure tapping center of screen
 - Try tapping exact center multiple times
 
-### Install/Uninstall doesn't work (NEW)
+### Install/Uninstall doesn't work
 
 - Check that the install/uninstall dialog appears on the device screen
 - Verify permissions are granted in Android Settings
 - Check logcat for errors: `adb logcat | grep DisplayLauncher`
 - Ensure APK file is valid (for uploads)
+
+### Intent extras not received by app
+
+- Verify the target app supports intent extras
+- Check that extra key names match what the app expects (case-sensitive)
+- Test with ADB: `adb shell am start -n com.package/.Activity --es key value`
+- Enable logcat on both launcher and target app to debug
 
 ---
 
@@ -477,24 +512,23 @@ Android security requires user confirmation for app installation and uninstallat
 
 ```
 com.tpn.displaylauncher/
-├── MainActivity.kt              # Main launcher activity with UI
-├── LauncherService.kt           # Foreground service
-├── LauncherWebServer.kt         # HTTP server implementation
-├── AppLauncher.kt               # App management logic
-├── InstallActivity.kt           # APK installation handler (NEW)
-└── UninstallActivity.kt         # App uninstallation handler (NEW)
+├── MainActivity.kt # Main launcher activity with UI
+├── LauncherService.kt # Foreground service
+├── LauncherWebServer.kt # HTTP server implementation
+├── AppLauncher.kt # App management logic with intent extras support
+├── InstallActivity.kt # APK installation handler
+└── UninstallActivity.kt # App uninstallation handler
 ```
 
 ---
 
 ## Documentation
 
-- **[API Reference](./API.md)** - Complete REST API documentation with all endpoints, parameters, and examples
-- **[Home Assistant Integration Guide](./HomeAssistant.md)** - Comprehensive guide for Home Assistant automation, scripts, and dashboard setup
+- **[API Reference](./API.md)** - Complete REST API documentation with all endpoints, parameters, and examples including intent extras support
+- **[Home Assistant Integration Guide](./HomeAssistant.md)** - Comprehensive guide for Home Assistant automation, scripts, and dashboard setup with intent examples
 
 ---
 
 ## CI/CD
 
-GitHub Actions workflow included for automated APK builds on releases. See `.github/workflows/build-release.yml`.
-
+GitHub Actions workflow included for automated APK builds on releases.  See `.github/workflows/build-release.yml`.
