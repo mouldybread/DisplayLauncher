@@ -51,10 +51,25 @@ class AppLauncher(val context: Context) {
         return try {
             val intent = if (action != null) {
                 Intent(action).apply {
-                    if (data != null) {
+                    if (data != null && data.isNotEmpty()) {
                         setData(Uri.parse(data))
+                        setPackage(packageName)
+                    } else {
+                        // For MAIN action without data, target the launcher activity directly
+                        if (action == Intent.ACTION_MAIN) {
+                            val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+                            if (launchIntent != null) {
+                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                // Add intent extras
+                                extras?.forEach { (key, value) ->
+                                    launchIntent.putExtra(key, value)
+                                }
+                                context.startActivity(launchIntent)
+                                return true
+                            }
+                        }
+                        setPackage(packageName)
                     }
-                    setPackage(packageName)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
                     // Add intent extras
