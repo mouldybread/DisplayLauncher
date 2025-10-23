@@ -47,7 +47,7 @@ class AppLauncher(val context: Context) {
         }
     }
 
-    fun launchAppWithIntent(packageName: String, action: String? = null, data: String? = null): Boolean {
+    fun launchAppWithIntent(packageName: String, action: String? = null, data: String? = null, extras: Map<String, String>? = null): Boolean {
         return try {
             val intent = if (action != null) {
                 Intent(action).apply {
@@ -56,10 +56,20 @@ class AppLauncher(val context: Context) {
                     }
                     setPackage(packageName)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+                    // Add intent extras
+                    extras?.forEach { (key, value) ->
+                        putExtra(key, value)
+                    }
                 }
             } else {
                 context.packageManager.getLaunchIntentForPackage(packageName)?.apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+                    // Add intent extras
+                    extras?.forEach { (key, value) ->
+                        putExtra(key, value)
+                    }
                 }
             }
 
@@ -70,6 +80,7 @@ class AppLauncher(val context: Context) {
                 false
             }
         } catch (e: Exception) {
+            android.util.Log.e("AppLauncher", "Failed to launch with intent: ${e.message}", e)
             false
         }
     }

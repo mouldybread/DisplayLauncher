@@ -388,11 +388,34 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             val action = jsonObject.get("action")?.asString
             val data = jsonObject.get("data")?.asString
 
+            // Parse extras - support multiple formats
+            val extras = mutableMapOf<String, String>()
+
+            // Format 1: extra_string parameter (e.g., "extra_string": "camera_name:ZERO")
+            jsonObject.get("extra_string")?.asString?.let { extraString ->
+                extraString.split(",").forEach { pair ->
+                    val parts = pair.split(":", limit = 2)
+                    if (parts.size == 2) {
+                        extras[parts[0].trim()] = parts[1].trim()
+                    }
+                }
+            }
+
+            // Format 2: individual extra_* parameters (e.g., "extra_camera_name": "ZERO")
+            jsonObject.entrySet().forEach { (key, value) ->
+                if (key.startsWith("extra_") && key != "extra_string") {
+                    val extraKey = key.removePrefix("extra_")
+                    extras[extraKey] = value.asString
+                }
+            }
+
             if (packageName.isNullOrEmpty()) {
                 return createJsonResponse(false, "Package name is required")
             }
 
-            val success = appLauncher.launchAppWithIntent(packageName, action, data)
+            Log.d(TAG, "Launch intent: package=$packageName, action=$action, data=$data, extras=$extras")
+
+            val success = appLauncher.launchAppWithIntent(packageName, action, data, extras)
             return if (success) {
                 createJsonResponse(true, "App launched successfully with intent")
             } else {
