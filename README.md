@@ -2,6 +2,19 @@
 
 A headless Android launcher designed for digital signage, kiosks, and remote-controlled displays. Control which apps run on your Android device via a simple web API or browser interface.
 
+## Foreword
+
+Android 14 introduces enhanced ADB security which disables and randomises the port used after sleep/reboot, breaking my automation setup. While [Auto ADB Enable](https://github.com/mouldybread/adb-auto-enable) provides a workaround, Display Launcher helps to eliminate the need for ADB entirely by providing direct REST API control for app launching.
+
+**Part of an ADB-free ecosystem:**
+
+- **[Auto ADB Enable](https://github.com/mouldybread/adb-auto-enable)** - Temporary workaround for legacy workflows
+- **[Display Launcher](https://github.com/mouldybread/DisplayLauncher)** (this app) - ADB-free app control with intent extras
+- **[Android Stream Viewer](https://github.com/mouldybread/android-stream-viewer)** - ADB-free camera display
+
+Display Launcher's intent extras support enables integration with apps like Stream Viewer. Launch Stream Viewer directly to a specific camera from Home Assistant—no ADB required. Combined with Stream Viewer's web configuration, you get complete remote control that's more reliable than ADB (no timeouts, no re-authorization) and works within Android's security model.
+
+
 > [!CAUTION]
 > This application has **NO built-in authentication or encryption**. The web server runs on port 9091 with **unrestricted access** to anyone who can reach the device on your network.
 >
