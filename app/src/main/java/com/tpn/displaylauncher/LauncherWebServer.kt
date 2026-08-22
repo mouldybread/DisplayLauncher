@@ -388,24 +388,54 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             val action = jsonObject.get("action")?.asString
             val data = jsonObject.get("data")?.asString
 
-            // Parse extras - support multiple formats
-            val extras = mutableMapOf<String, String>()
+            // Parse extras supporting native types
+            val extras = mutableMapOf<String, Any>()
 
-            // Format 1: extra_string parameter (e.g., "extra_string": "camera_name:ZERO")
+            // Format 1: extra_string parameter with smart-type conversion
             jsonObject.get("extra_string")?.asString?.let { extraString ->
                 extraString.split(",").forEach { pair ->
                     val parts = pair.split(":", limit = 2)
                     if (parts.size == 2) {
-                        extras[parts[0].trim()] = parts[1].trim()
+                        val k = parts[0].trim()
+                        val v = parts[1].trim()
+                        extras[k] = when {
+                            v.equals("true", ignoreCase = true) -> true
+                            v.equals("false", ignoreCase = true) -> false
+                            v.toIntOrNull() != null -> v.toInt()
+                            v.toLongOrNull() != null -> v.toLong()
+                            v.toDoubleOrNull() != null -> v.toDouble()
+                            else -> v
+                        }
                     }
                 }
             }
 
-            // Format 2: individual extra_* parameters (e.g., "extra_camera_name": "ZERO")
+            // Format 2: individual extra_* parameters preserving JSON types
             jsonObject.entrySet().forEach { (key, value) ->
                 if (key.startsWith("extra_") && key != "extra_string") {
                     val extraKey = key.removePrefix("extra_")
-                    extras[extraKey] = value.asString
+                    if (value.isJsonPrimitive) {
+                        val primitive = value.asJsonPrimitive
+                        when {
+                            primitive.isBoolean -> extras[extraKey] = primitive.asBoolean
+                            primitive.isNumber -> {
+                                val numStr = primitive.asString
+                                if (numStr.contains(".")) {
+                                    extras[extraKey] = primitive.asDouble
+                                } else {
+                                    val longVal = primitive.asLong
+                                    if (longVal in Int.MIN_VALUE..Int.MAX_VALUE) {
+                                        extras[extraKey] = longVal.toInt()
+                                    } else {
+                                        extras[extraKey] = longVal
+                                    }
+                                }
+                            }
+                            primitive.isString -> extras[extraKey] = primitive.asString
+                        }
+                    } else {
+                        extras[extraKey] = value.toString()
+                    }
                 }
             }
 
@@ -426,7 +456,6 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             return createJsonResponse(false, "Error: ${e.message}")
         }
     }
-
     private fun uninstallApp(session: IHTTPSession): Response {
         val map = HashMap<String, String>()
         try {

@@ -47,7 +47,7 @@ class AppLauncher(val context: Context) {
         }
     }
 
-    fun launchAppWithIntent(packageName: String, action: String? = null, data: String? = null, extras: Map<String, String>? = null): Boolean {
+    fun launchAppWithIntent(packageName: String, action: String? = null, data: String? = null, extras: Map<String, Any>? = null): Boolean {
         return try {
             val intent = if (action != null) {
                 Intent(action).apply {
@@ -60,9 +60,9 @@ class AppLauncher(val context: Context) {
                             val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
                             if (launchIntent != null) {
                                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                // Add intent extras
+                                // Add intent extras with native type matching
                                 extras?.forEach { (key, value) ->
-                                    launchIntent.putExtra(key, value)
+                                    putIntentExtra(launchIntent, key, value)
                                 }
                                 context.startActivity(launchIntent)
                                 return true
@@ -72,18 +72,16 @@ class AppLauncher(val context: Context) {
                     }
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-                    // Add intent extras
                     extras?.forEach { (key, value) ->
-                        putExtra(key, value)
+                        putIntentExtra(this, key, value)
                     }
                 }
             } else {
                 context.packageManager.getLaunchIntentForPackage(packageName)?.apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-                    // Add intent extras
                     extras?.forEach { (key, value) ->
-                        putExtra(key, value)
+                        putIntentExtra(this, key, value)
                     }
                 }
             }
@@ -100,6 +98,18 @@ class AppLauncher(val context: Context) {
         }
     }
 
+    // Helper to safely attach native primitive types to an Intent
+    private fun putIntentExtra(intent: Intent, key: String, value: Any) {
+        when (value) {
+            is Boolean -> intent.putExtra(key, value)
+            is Int -> intent.putExtra(key, value)
+            is Long -> intent.putExtra(key, value)
+            is Float -> intent.putExtra(key, value)
+            is Double -> intent.putExtra(key, value)
+            is String -> intent.putExtra(key, value)
+            else -> intent.putExtra(key, value.toString())
+        }
+    }
     fun uninstallApp(packageName: String): Boolean {
         return try {
             val intent = Intent(context, UninstallActivity::class.java).apply {
