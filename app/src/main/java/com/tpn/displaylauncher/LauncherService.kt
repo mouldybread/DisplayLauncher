@@ -4,7 +4,9 @@ import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 
@@ -14,6 +16,25 @@ class LauncherService : Service() {
     private val TAG = "LauncherService"
     private var restartAttempts = 0
     private val maxRestartAttempts = 5
+
+    // Class-level handler and runnable to prevent duplicate loops and memory leaks
+    private val monitoringHandler = Handler(Looper.getMainLooper())
+    private val monitoringRunnable = object : Runnable {
+        override fun run() {
+            try {
+                // Check if server is still alive
+                if (webServer == null || !webServer!!.isAlive) {
+                    Log.w(TAG, "Web server is not running. Attempting restart...")
+                    startWebServer()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in server monitoring: ${e.message}", e)
+            }
+
+            // Check again in 60 seconds
+            monitoringHandler.postDelayed(this, 60000)
+        }
+    }
 
     companion object {
         const val NOTIFICATION_ID = 1
@@ -26,15 +47,15 @@ class LauncherService : Service() {
         super.onCreate()
         Log.d(TAG, "Service created")
         createNotificationChannel()
+
+        // Start server monitoring once upon service creation
+        startServerMonitoring()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "Service started")
         startForegroundService()
         startWebServer()
-
-        // Monitor server health
-        startServerMonitoring()
 
         return START_STICKY
     }
@@ -76,7 +97,7 @@ class LauncherService : Service() {
             // Attempt restart after delay
             if (restartAttempts < maxRestartAttempts) {
                 restartAttempts++
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                Handler(Looper.getMainLooper()).postDelayed({
                     startWebServer()
                 }, 5000) // Wait 5 seconds before retry
             } else {
@@ -96,26 +117,9 @@ class LauncherService : Service() {
     }
 
     private fun startServerMonitoring() {
-        val handler = android.os.Handler(android.os.Looper.getMainLooper())
-        val runnable = object : Runnable {
-            override fun run() {
-                try {
-                    // Check if server is still alive
-                    if (webServer == null || !webServer!!.isAlive) {
-                        Log.w(TAG, "Web server is not running. Attempting restart...")
-                        startWebServer()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in server monitoring: ${e.message}", e)
-                }
-
-                // Check again in 60 seconds
-                handler.postDelayed(this, 60000)
-            }
-        }
-
-        // Start monitoring after 60 seconds
-        handler.postDelayed(runnable, 60000)
+        // Clear any existing callbacks just in case, then start monitoring after 60 seconds
+        monitoringHandler.removeCallbacks(monitoringRunnable)
+        monitoringHandler.postDelayed(monitoringRunnable, 60000)
     }
 
     private fun createNotificationChannel() {
@@ -137,6 +141,9 @@ class LauncherService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "Service destroyed")
+
+        // Clean up handler callbacks to prevent leaks
+        monitoringHandler.removeCallbacks(monitoringRunnable)
         stopWebServer()
     }
 
