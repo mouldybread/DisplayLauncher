@@ -17,21 +17,28 @@ class AppLauncher(val context: Context) {
 
     fun getInstalledApps(): List<AppInfo> {
         val packageManager = context.packageManager
-        val apps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
 
-        return apps
-            .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 }
-            .mapNotNull { appInfo ->
+        // Query for apps that have a launcher activity (includes user-installed + system launchable apps)
+        val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+
+        val resolveInfos = packageManager.queryIntentActivities(mainIntent, 0)
+
+        return resolveInfos
+            .mapNotNull { resolveInfo ->
                 try {
-                    val appName = packageManager.getApplicationLabel(appInfo).toString()
-                    AppInfo(appName, appInfo.packageName)
+                    val activityInfo = resolveInfo.activityInfo
+                    val appName = activityInfo.loadLabel(packageManager).toString()
+                    val packageName = activityInfo.packageName
+                    AppInfo(appName, packageName)
                 } catch (e: Exception) {
                     null
                 }
             }
+            .distinctBy { it.packageName } // Remove duplicates if an app has multiple launcher activities
             .sortedBy { it.name.lowercase() }
     }
-
     fun launchApp(packageName: String): Boolean {
         return try {
             val intent = context.packageManager.getLaunchIntentForPackage(packageName)
