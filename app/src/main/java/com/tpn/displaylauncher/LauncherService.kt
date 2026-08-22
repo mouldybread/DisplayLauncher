@@ -1,6 +1,10 @@
 package com.tpn.displaylauncher
 
-import android.app.*
+import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -13,7 +17,6 @@ import androidx.core.app.NotificationCompat
 class LauncherService : Service() {
 
     private var webServer: LauncherWebServer? = null
-    private val TAG = "LauncherService"
     private var restartAttempts = 0
     private val maxRestartAttempts = 5
 
@@ -37,6 +40,7 @@ class LauncherService : Service() {
     }
 
     companion object {
+        private const val TAG = "LauncherService"
         const val NOTIFICATION_ID = 1
         const val CHANNEL_ID = "LauncherServiceChannel"
     }
@@ -92,6 +96,7 @@ class LauncherService : Service() {
             Log.e(TAG, "Failed to start foreground service: ${e.message}", e)
         }
     }
+
     private fun startWebServer() {
         try {
             stopWebServer()

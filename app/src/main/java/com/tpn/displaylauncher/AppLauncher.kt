@@ -2,10 +2,7 @@ package com.tpn.displaylauncher
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
-import android.net.Uri
-import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import java.io.File
 
 data class AppInfo(
@@ -39,6 +36,7 @@ class AppLauncher(val context: Context) {
             .distinctBy { it.packageName } // Remove duplicates if an app has multiple launcher activities
             .sortedBy { it.name.lowercase() }
     }
+
     fun launchApp(packageName: String): Boolean {
         return try {
             val intent = context.packageManager.getLaunchIntentForPackage(packageName)
@@ -54,12 +52,17 @@ class AppLauncher(val context: Context) {
         }
     }
 
-    fun launchAppWithIntent(packageName: String, action: String? = null, data: String? = null, extras: Map<String, Any>? = null): Boolean {
+    fun launchAppWithIntent(
+        packageName: String,
+        action: String? = null,
+        data: String? = null,
+        extras: Map<String, Any>? = null
+    ): Boolean {
         return try {
             val intent = if (action != null) {
                 Intent(action).apply {
-                    if (data != null && data.isNotEmpty()) {
-                        setData(Uri.parse(data))
+                    if (!data.isNullOrEmpty()) {
+                        setData(data.toUri())
                         setPackage(packageName)
                     } else {
                         // For MAIN action without data, target the launcher activity directly
@@ -117,6 +120,7 @@ class AppLauncher(val context: Context) {
             else -> intent.putExtra(key, value.toString())
         }
     }
+
     fun uninstallApp(packageName: String): Boolean {
         return try {
             val intent = Intent(context, UninstallActivity::class.java).apply {
@@ -130,7 +134,6 @@ class AppLauncher(val context: Context) {
             false
         }
     }
-
 
     fun installApkFromFile(apkFile: File): Boolean {
         return try {
@@ -150,7 +153,6 @@ class AppLauncher(val context: Context) {
             false
         }
     }
-
 
     fun cleanupOldApks() {
         try {

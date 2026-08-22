@@ -1,15 +1,18 @@
 package com.tpn.displaylauncher
 
 import android.util.Log
-import fi.iki.elonen.NanoHTTPD
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import fi.iki.elonen.NanoHTTPD
 import java.io.File
 
 class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoHTTPD(port) {
 
     private val gson = Gson()
-    private val TAG = "LauncherWebServer"
+
+    companion object {
+        private const val TAG = "LauncherWebServer"
+    }
 
     override fun serve(session: IHTTPSession): Response {
         return try {
@@ -456,6 +459,7 @@ class LauncherWebServer(port: Int, private val appLauncher: AppLauncher) : NanoH
             return createJsonResponse(false, "Error: ${e.message}")
         }
     }
+
     private fun uninstallApp(session: IHTTPSession): Response {
         val map = HashMap<String, String>()
         try {
