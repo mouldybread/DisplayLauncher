@@ -2,18 +2,7 @@
 
 A headless Android launcher designed for digital signage, kiosks, and remote-controlled displays. Control which apps run on your Android device via a simple web API or browser interface.
 
-## Foreword
-
-Android 14 introduces enhanced ADB security which disables and randomises the port used after sleep/reboot, breaking my automation setup. While [Auto ADB Enable](https://github.com/mouldybread/adb-auto-enable) provides a workaround, Display Launcher helps to eliminate the need for ADB entirely by providing direct REST API control for app launching.
-
-**Part of an ADB-free ecosystem:**
-
-- **[Auto ADB Enable](https://github.com/mouldybread/adb-auto-enable)** - Temporary workaround for legacy workflows
-- **[Display Launcher](https://github.com/mouldybread/DisplayLauncher)** (this app) - ADB-free app control with intent extras
-- **[Android Stream Viewer](https://github.com/mouldybread/android-stream-viewer)** - ADB-free camera display
-
-Display Launcher's intent extras support enables integration with apps like Stream Viewer. Launch Stream Viewer directly to a specific camera from Home Assistant—no ADB required. Combined with Stream Viewer's web configuration, you get complete remote control that's more reliable than ADB (no timeouts, no re-authorization) and works within Android's security model.
-
+Use intent extras and API support to trigger specific app actions and deep links remotely from external tools.
 
 > [!CAUTION]
 > This application has **NO built-in authentication or encryption**. The web server runs on port 9091 with **unrestricted access** to anyone who can reach the device on your network.
@@ -22,7 +11,6 @@ Display Launcher's intent extras support enables integration with apps like Stre
 > ❌ **DO NOT** port forward 9091 to the internet  
 > ❌ **DO NOT** use on untrusted networks (public WiFi, etc.)  
 > ❌ **DO NOT** assume any built-in security exists  
-> ⚠️ **NEW:** This app can install/uninstall APKs remotely - use only on trusted networks!
 
 ## Table of Contents
 
@@ -45,18 +33,6 @@ Display Launcher's intent extras support enables integration with apps like Stre
 
 ---
 
-## Overview
-
-Display Launcher runs as a minimal, invisible home screen that allows you to remotely switch between applications without user interaction. Perfect for:
-
-- **Digital signage displays** - Switch content remotely
-- **Kiosk systems** - Control which app is displayed
-- **Smart home displays** - Change dashboards on demand
-- **Presentation systems** - Switch between apps during demos
-- **Projector control** - Manage content from any device on your network
-- **Camera display systems** - Launch apps with specific configurations (e.g., specific camera views)
-
----
 
 ## Features
 
@@ -84,7 +60,7 @@ Display Launcher consists of five main components:
 
 When apps are launched via the API, they come to the foreground automatically. The launcher itself remains invisible in the background.
 
-**New:** Apps can now be launched with custom intent extras, enabling advanced integrations like:
+Apps can now be launched with custom intent extras, enabling advanced integrations like:
 - Launching camera viewer apps with specific camera selected
 - Opening YouTube videos directly
 - Passing configuration parameters to apps
@@ -365,8 +341,6 @@ The launcher UI is hidden by default. To access it:
 3. Settings UI appears
 4. Tap **"Hide UI"** to hide it again
 
-> 💡 The subtle hint "Tap center 3x to show settings" appears on the black screen.
-
 ---
 
 ## Configuration
@@ -539,9 +513,3 @@ com.tpn.displaylauncher/
 
 - **[API Reference](./API.md)** - Complete REST API documentation with all endpoints, parameters, and examples including intent extras support
 - **[Home Assistant Integration Guide](./HomeAssistant.md)** - Comprehensive guide for Home Assistant automation, scripts, and dashboard setup with intent examples
-
----
-
-## CI/CD
-
-GitHub Actions workflow included for automated APK builds on releases.  See `.github/workflows/build-release.yml`.
