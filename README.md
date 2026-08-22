@@ -25,6 +25,8 @@ A headless Android launcher designed for digital signage, kiosks, and remote dis
 - [Permissions](#permissions)
 - [Troubleshooting](#troubleshooting)
 - [Technical Specifications](#technical-specifications)
+- [Examples](#examples)
+- [Documentation](#documentation)
 
 ---
 
@@ -37,6 +39,7 @@ A headless Android launcher designed for digital signage, kiosks, and remote dis
 - Automatic service initialization on system boot via `BootReceiver`.
 - Persistent foreground service daemon[cite: 8].
 - D-pad and remote control focus handling for Android TV/set-top boxes.
+- UI reveal via 3x D-Pad DOWN or 3x center-screen tap.
 
 ---
 
@@ -44,7 +47,7 @@ A headless Android launcher designed for digital signage, kiosks, and remote dis
 
 The application consists of the following internal components:
 
-1. **`MainActivity`**: Root launcher activity hosting the configuration interface (accessible via triple-tap gesture)[cite: 8].
+1. **`MainActivity`**: Root launcher activity hosting the configuration interface (accessible via 3x D-Pad DOWN or 3x center tap)[cite: 8].
 2. **`LauncherService`**: Foreground service maintaining the HTTP server lifecycle independently of UI state[cite: 8].
 3. **`BootReceiver`**: Broadcast receiver that triggers `LauncherService` upon system startup (`ACTION_BOOT_COMPLETED`).
 4. **`LauncherWebServer`**: Embedded HTTP server running on port 9091[cite: 8].
@@ -63,7 +66,7 @@ The application consists of the following internal components:
 
 1. Install the APK package on the target device[cite: 8].
 2. Launch the application locally[cite: 8].
-3. Tap the center of the screen three times rapidly to invoke the settings UI[cite: 8].
+3. Press **D-Pad DOWN** 3 times rapidly (or tap the center of the screen 3 times) to invoke the settings UI[cite: 8].
 4. Select **"Set as Default Launcher"** to register the app as the system home handler[cite: 8].
 5. Grant required permissions[cite: 8].
 
@@ -161,7 +164,7 @@ Content-Type: multipart/form-data
 To open the settings interface on a headless display:
 
 1. Return to the home screen (renders a black background)[cite: 8].
-2. Tap the center of the display three times within a 1-second window[cite: 8].
+2. Press **D-Pad DOWN** 3 times quickly (or tap the center of the display 3 times within 1 second)[cite: 8].
 3. Select **"Hide UI"** to return to headless mode[cite: 8].
 
 ---
@@ -170,6 +173,7 @@ To open the settings interface on a headless display:
 
 - **Port Modification**: Edit the port parameter in `LauncherService.kt` (`LauncherWebServer(9091, ...)`[cite: 8]).
 - **App Query Scope**: `AppLauncher.kt` queries launchable applications via `PackageManager.queryIntentActivities()` using `CATEGORY_LAUNCHER`, including pre-installed system apps.
+- **Gesture / Key Modification**: Key event detection (`KEYCODE_DPAD_DOWN`) and tap thresholds can be adjusted in `MainActivity.kt`.
 
 ---
 

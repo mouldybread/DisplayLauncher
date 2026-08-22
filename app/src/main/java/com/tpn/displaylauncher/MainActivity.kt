@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
 class MainActivity : ComponentActivity() {
 
@@ -53,6 +55,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun getLocalIpAddress(): String {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val networkInterface = interfaces.nextElement()
+                val addresses = networkInterface.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val address = addresses.nextElement()
+                    if (!address.isLoopbackAddress && address is Inet4Address) {
+                        return address.hostAddress ?: "Unknown"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore exception
+        }
+        return "Offline"
+    }
+
     @Composable
     fun LauncherUI() {
         val prefs = remember { getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE) }
@@ -60,27 +81,26 @@ class MainActivity : ComponentActivity() {
         var showUI by remember { mutableStateOf(false) }
         var lastTapTime by remember { mutableLongStateOf(0L) }
         var tapCount by remember { mutableIntStateOf(0) }
-        var selectedIndex by remember { mutableIntStateOf(3) }
+        var selectedIndex by remember { mutableIntStateOf(0) }
         val listState = rememberLazyListState()
         val coroutineScope = rememberCoroutineScope()
 
-        // Focus requester for reliable D-pad / Android TV navigation
         val focusRequester = remember { FocusRequester() }
 
         val allApps = remember { mutableStateOf(appLauncher.getInstalledApps()) }
         val totalItems = 3 + allApps.value.size
+        val ipAddress = remember { getLocalIpAddress() }
 
         LaunchedEffect(showUI) {
             if (showUI && !hasSeenUI) {
                 prefs.edit().putBoolean("has_seen_ui", true).apply()
                 hasSeenUI = true
             }
-            // Request focus immediately when settings UI opens
             if (showUI) {
                 try {
                     focusRequester.requestFocus()
                 } catch (e: Exception) {
-                    // Ignore if node is not yet attached
+                    // Ignore if node is not attached
                 }
             }
         }
@@ -89,7 +109,7 @@ class MainActivity : ComponentActivity() {
             modifier = Modifier
                 .fillMaxSize()
                 .background(if (showUI) Color(0xFF667eea) else Color.Black)
-                .focusRequester(focusRequester) // Bind focus requester here
+                .focusRequester(focusRequester)
                 .onKeyEvent { keyEvent ->
                     if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                         when (keyEvent.nativeKeyEvent.keyCode) {
@@ -110,14 +130,44 @@ class MainActivity : ComponentActivity() {
                                     lastTapTime = currentTime
                                     true
                                 } else {
-                                    selectedIndex = (selectedIndex + 1).coerceAtMost(totalItems - 1)
-                                    if (selectedIndex >= 3) {
+                                    if (selectedIndex < 3) {
+                                        selectedIndex = 3
+                                        coroutineScope.launch {
+                                            listState.animateScrollToItem(0)
+                                        }
+                                    } else {
+                                        selectedIndex = (selectedIndex + 1).coerceAtMost(totalItems - 1)
                                         coroutineScope.launch {
                                             listState.animateScrollToItem((selectedIndex - 3).coerceAtLeast(0))
                                         }
                                     }
                                     true
                                 }
+                            }
+                            KeyEvent.KEYCODE_DPAD_UP -> {
+                                if (showUI) {
+                                    if (selectedIndex == 3) {
+                                        selectedIndex = 0
+                                    } else if (selectedIndex > 3) {
+                                        selectedIndex -= 1
+                                        coroutineScope.launch {
+                                            listState.animateScrollToItem((selectedIndex - 3).coerceAtLeast(0))
+                                        }
+                                    }
+                                    true
+                                } else false
+                            }
+                            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                if (showUI && selectedIndex in 1..2) {
+                                    selectedIndex -= 1
+                                    true
+                                } else false
+                            }
+                            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                if (showUI && selectedIndex < 2) {
+                                    selectedIndex += 1
+                                    true
+                                } else false
                             }
                             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
                                 if (showUI) {
@@ -152,17 +202,6 @@ class MainActivity : ComponentActivity() {
                                 } else {
                                     false
                                 }
-                            }
-                            KeyEvent.KEYCODE_DPAD_UP -> {
-                                if (showUI) {
-                                    selectedIndex = (selectedIndex - 1).coerceAtLeast(0)
-                                    if (selectedIndex >= 3) {
-                                        coroutineScope.launch {
-                                            listState.animateScrollToItem((selectedIndex - 3).coerceAtLeast(0))
-                                        }
-                                    }
-                                    true
-                                } else false
                             }
                             KeyEvent.KEYCODE_BACK -> {
                                 if (showUI) {
@@ -212,7 +251,7 @@ class MainActivity : ComponentActivity() {
         ) {
             if (!showUI && !hasSeenUI) {
                 Text(
-                    text = "Tap center 3x to show settings",
+                    text = "Press DPAD DOWN 3x to show settings",
                     color = Color.White.copy(alpha = 0.3f),
                     fontSize = 14.sp,
                     modifier = Modifier.align(Alignment.Center)
@@ -225,89 +264,100 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
-                    Text(
-                        text = "🚀 Display Launcher",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "🚀 Display Launcher",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "http://$ipAddress:9091",
+                                fontSize = 13.sp,
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
 
-                    Button(
-                        onClick = {
-                            try {
-                                val intent = Intent(Settings.ACTION_HOME_SETTINGS)
-                                startActivity(intent)
-                            } catch (e: Exception) {
-                                val intent = Intent(Settings.ACTION_SETTINGS)
-                                startActivity(intent)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    try {
+                                        val intent = Intent(Settings.ACTION_HOME_SETTINGS)
+                                        startActivity(intent)
+                                    } catch (e: Exception) {
+                                        val intent = Intent(Settings.ACTION_SETTINGS)
+                                        startActivity(intent)
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.border(
+                                    width = if (selectedIndex == 0) 3.dp else 0.dp,
+                                    color = if (selectedIndex == 0) Color.White else Color.Transparent
+                                ),
+                                colors = if (selectedIndex == 0) {
+                                    ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.3f))
+                                } else {
+                                    ButtonDefaults.buttonColors()
+                                }
+                            ) {
+                                Text("Set Default", fontSize = 13.sp)
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(
-                                width = if (selectedIndex == 0) 3.dp else 0.dp,
-                                color = if (selectedIndex == 0) Color.White else Color.Transparent
-                            ),
-                        colors = if (selectedIndex == 0) {
-                            ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.3f))
-                        } else {
-                            ButtonDefaults.buttonColors()
+
+                            Button(
+                                onClick = {
+                                    startActivity(Intent(Settings.ACTION_SETTINGS))
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.border(
+                                    width = if (selectedIndex == 1) 3.dp else 0.dp,
+                                    color = if (selectedIndex == 1) Color.White else Color.Transparent
+                                ),
+                                colors = if (selectedIndex == 1) {
+                                    ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.3f))
+                                } else {
+                                    ButtonDefaults.buttonColors()
+                                }
+                            ) {
+                                Text("Android Settings", fontSize = 13.sp)
+                            }
+
+                            Button(
+                                onClick = { showUI = false },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.border(
+                                    width = if (selectedIndex == 2) 3.dp else 0.dp,
+                                    color = if (selectedIndex == 2) Color.White else Color.Transparent
+                                ),
+                                colors = if (selectedIndex == 2) {
+                                    ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.3f))
+                                } else {
+                                    ButtonDefaults.buttonColors()
+                                }
+                            ) {
+                                Text("Hide UI", fontSize = 13.sp)
+                            }
                         }
-                    ) {
-                        Text("Set as Default Launcher")
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = {
-                            startActivity(Intent(Settings.ACTION_SETTINGS))
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(
-                                width = if (selectedIndex == 1) 3.dp else 0.dp,
-                                color = if (selectedIndex == 1) Color.White else Color.Transparent
-                            ),
-                        colors = if (selectedIndex == 1) {
-                            ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.3f))
-                        } else {
-                            ButtonDefaults.buttonColors()
-                        }
-                    ) {
-                        Text("Open Android Settings")
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = { showUI = false },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(
-                                width = if (selectedIndex == 2) 3.dp else 0.dp,
-                                color = if (selectedIndex == 2) Color.White else Color.Transparent
-                            ),
-                        colors = if (selectedIndex == 2) {
-                            ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.3f))
-                        } else {
-                            ButtonDefaults.buttonColors()
-                        }
-                    ) {
-                        Text("Hide UI")
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "Installed Apps:",
-                        fontSize = 18.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = Color.White.copy(alpha = 0.3f),
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
-
-                    Spacer(modifier = Modifier.height(8.dp))
 
                     LazyColumn(
                         state = listState,
@@ -319,7 +369,7 @@ class MainActivity : ComponentActivity() {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 8.dp)
+                                        .padding(vertical = 6.dp)
                                         .background(
                                             if (itemIndex == selectedIndex) Color.White.copy(alpha = 0.2f)
                                             else Color.Transparent
@@ -348,7 +398,7 @@ class MainActivity : ComponentActivity() {
                                 }
                                 HorizontalDivider(
                                     thickness = 1.dp,
-                                    color = Color.White.copy(alpha = 0.3f)
+                                    color = Color.White.copy(alpha = 0.2f)
                                 )
                             }
                         }
