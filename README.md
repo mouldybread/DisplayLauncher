@@ -1,69 +1,54 @@
 # Display Launcher
 
-A headless Android launcher designed for digital signage, kiosks, and remote-controlled displays. Control which apps run on your Android device via a simple web API or browser interface.
-
-Use intent extras and API support to trigger specific app actions and deep links remotely from external tools.
+A headless Android launcher designed for digital signage, kiosks, and remote displays[cite: 8]. Controls application execution via a local HTTP API or browser-based control panel[cite: 8].
 
 > [!CAUTION]
-> This application has **NO built-in authentication or encryption**. The web server runs on port 9091 with **unrestricted access** to anyone who can reach the device on your network.
+> This application has **NO built-in authentication or encryption**. The web server runs on port 9091 with **unrestricted access** to network clients[cite: 8].
 >
-> ❌ **DO NOT** expose this app directly to the internet  
-> ❌ **DO NOT** port forward 9091 to the internet  
-> ❌ **DO NOT** use on untrusted networks (public WiFi, etc.)  
-> ❌ **DO NOT** assume any built-in security exists  
+> ❌ **DO NOT** expose this app directly to the internet[cite: 8]  
+> ❌ **DO NOT** port forward port 9091[cite: 8]  
+> ❌ **DO NOT** deploy on untrusted networks[cite: 8]  
+> ❌ **DO NOT** assume any built-in security controls exist[cite: 8]
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
-- [How It Works](#how-it-works)
+- [Architecture & Components](#architecture--components)
 - [Installation](#installation)
 - [Usage](#usage)
   - [Web Interface](#web-interface)
   - [REST API](#rest-api)
-  - [Examples](#examples)
-- [On-Screen UI Access](#on-screen-ui-access)
+- [UI Access](#ui-access)
 - [Configuration](#configuration)
-- [Caveats & Limitations](#caveats--limitations)
+- [Limitations](#limitations)
 - [Permissions](#permissions)
 - [Troubleshooting](#troubleshooting)
-- [Technical Details](#technical-details)
-- [Documentation](#documentation)
-- [CI/CD](#cicd)
+- [Technical Specifications](#technical-specifications)
 
 ---
-
 
 ## Features
 
-- ✅ Web-based API for programmatic app launching
-- ✅ Browser interface for manual control
-- ✅ Upload and install APK files via web interface
-- ✅ Uninstall apps remotely from web interface
-- ✅ **Intent-based app launching with extras support** (deep links, YouTube videos, URLs, app-specific parameters)
-- ✅ Headless operation - Shows black screen when not needed
-- ✅ Persistent background service - Works even when other apps are running
-- ✅ Triple-tap gesture to access settings when needed
-- ✅ No accessibility services required
+- REST API endpoints for programmatic application launching and intent execution[cite: 8].
+- Embedded web interface for device management[cite: 8].
+- Remote APK upload, installation, and package removal[cite: 8].
+- Intent parameter passing (actions, data URIs, and extra key-value pairs)[cite: 8].
+- Automatic service initialization on system boot via `BootReceiver`.
+- Persistent foreground service daemon[cite: 8].
+- D-pad and remote control focus handling for Android TV/set-top boxes.
 
 ---
 
-## How It Works
+## Architecture & Components
 
-Display Launcher consists of five main components:
+The application consists of the following internal components:
 
-1. **MainActivity** - Minimal UI shown only when needed (triple-tap center screen)
-2. **LauncherService** - Foreground service that keeps the web server running
-3. **LauncherWebServer** - HTTP server on port 9091 for remote control
-4. **InstallActivity** - Transparent activity for APK installation
-5. **UninstallActivity** - Transparent activity for app uninstallation
-
-When apps are launched via the API, they come to the foreground automatically. The launcher itself remains invisible in the background.
-
-Apps can now be launched with custom intent extras, enabling advanced integrations like:
-- Launching camera viewer apps with specific camera selected
-- Opening YouTube videos directly
-- Passing configuration parameters to apps
+1. **`MainActivity`**: Root launcher activity hosting the configuration interface (accessible via triple-tap gesture)[cite: 8].
+2. **`LauncherService`**: Foreground service maintaining the HTTP server lifecycle independently of UI state[cite: 8].
+3. **`BootReceiver`**: Broadcast receiver that triggers `LauncherService` upon system startup (`ACTION_BOOT_COMPLETED`).
+4. **`LauncherWebServer`**: Embedded HTTP server running on port 9091[cite: 8].
+5. **`InstallActivity` / `UninstallActivity`**: Transparent activity wrappers required for package management intents[cite: 8].
 
 ---
 
@@ -71,19 +56,18 @@ Apps can now be launched with custom intent extras, enabling advanced integratio
 
 ### Requirements
 
-- Android 7.0 (API 24) or higher
-- Android 14+ recommended for full foreground service support
+- Android 7.0 (API 24) or higher[cite: 8].
+- Android 14+ recommended for full foreground service type compliance[cite: 8].
 
-### Setup
+### Setup Procedure
 
-1. Install the APK on your Android device
-2. Open the Display Launcher app
-3. Triple-tap the center of the screen to show settings
-4. Tap **"Set Default"** and select Display Launcher as your home app
-5. Grant any requested permissions
-6. The web server starts automatically on port 9091
+1. Install the APK package on the target device[cite: 8].
+2. Launch the application locally[cite: 8].
+3. Tap the center of the screen three times rapidly to invoke the settings UI[cite: 8].
+4. Select **"Set as Default Launcher"** to register the app as the system home handler[cite: 8].
+5. Grant required permissions[cite: 8].
 
-### Setting as Default Launcher (ADB Method)
+### ADB Setup Method
 
 ```bash
 adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
@@ -95,33 +79,21 @@ adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
 
 ### Web Interface
 
-Access the web interface from any device on the same network:
+Access the control panel from any HTTP client on the local network[cite: 8]:
 
-```
+```text
 http://[device-ip-address]:9091
 ```
 
-The web interface provides:
+### REST API Reference
 
-- List of all installed user apps
-- One-click launch buttons
-- One-click uninstall buttons
-- APK file upload and installation
-- Search functionality
-- Real-time status messages
-
-### REST API
-
-For complete API documentation, see the [API Reference](./API.md).
-
-#### Get list of installed apps
+#### Get Installed Applications
 
 ```http
 GET http://[device-ip]:9091/api/apps
 ```
 
 **Response:**
-
 ```json
 [
   {
@@ -131,385 +103,138 @@ GET http://[device-ip]:9091/api/apps
 ]
 ```
 
-#### Launch an app
+#### Launch Application
 
 ```http
 POST http://[device-ip]:9091/api/launch
 Content-Type: application/json
+
 {
   "packageName": "com.android.chrome"
 }
 ```
 
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "App launched successfully"
-}
-```
-
-#### Launch an app with intent and extras (NEW/UPDATED)
+#### Launch Application with Intent and Extras
 
 ```http
 POST http://[device-ip]:9091/api/launch-intent
 Content-Type: application/json
+
 {
   "packageName": "com.tpn.streamviewer",
   "action": "android.intent.action.MAIN",
-  "data": "",
   "extra_string": "camera_name:FRONTDOOR"
 }
 ```
 
-**Or with individual extra parameters:**
+**Intent Payload Parameters:**
 
-```json
-{
-  "packageName": "com.tpn.streamviewer",
-  "action": "android.intent.action.MAIN",
-  "extra_camera_name": "FRONTDOOR"
-}
-```
+| Field | Type | Description |
+|---|---|---|
+| `packageName` | String | Target package identifier (required)[cite: 8]. |
+| `action` | String | Intent action string (e.g., `android.intent.action.VIEW`)[cite: 8]. |
+| `data` | String | Intent data URI string[cite: 8]. |
+| `extra_string` | String | Comma-separated key-value pairs for intent extras (`key:value`)[cite: 8]. |
 
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "App launched successfully with intent"
-}
-```
-
-**Intent Examples:**
-
-| Use Case            | Example                                                                                   |
-|---------------------|-----------------------------------------------------------------------------------------|
-| YouTube video       | `{"packageName":"com.google.android.youtube","action":"android.intent.action.VIEW","data":"vnd.youtube://VIDEO_ID"}` |
-| URL                 | `{"packageName":"com.android.chrome","action":"android.intent.action.VIEW","data":"https://example.com"}`         |
-| App with extras     | `{"packageName":"com.example.app","action":"android.intent.action.MAIN","extra_string":"key:value"}`              |
-| Camera app          | `{"packageName":"com.tpn.streamviewer","action":"android.intent.action.MAIN","extra_string":"camera_name:FRONT"}` |
-
-**Extra String Format:**
-
-The `extra_string` parameter accepts comma-separated key:value pairs:
-- Single extra: `"extra_string": "camera_name:FRONTDOOR"`
-- Multiple extras: `"extra_string": "camera_name:FRONT,protocol:mse"`
-
-Alternatively, use individual `extra_*` parameters:
-- `"extra_camera_name": "FRONTDOOR"`
-- `"extra_protocol": "mse"`
-
-#### Uninstall an app
+#### Uninstall Application
 
 ```http
 POST http://[device-ip]:9091/api/uninstall
 Content-Type: application/json
+
 {
   "packageName": "com.example.app"
 }
 ```
 
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "Uninstall dialog opened"
-}
-```
-
-**Note:** The uninstall confirmation dialog appears on the device screen for security.
-
-#### Upload and install APK
+#### Upload and Install APK
 
 ```http
 POST http://[device-ip]:9091/api/upload-apk
 Content-Type: multipart/form-data
-(Form data with 'file' field containing APK)
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "Install dialog opened for uploaded APK"
-}
-```
-
-**Note:** The installation dialog appears on the device screen. Uploaded APK files are automatically cleaned up after 10 minutes.
-
-### Examples
-
-#### cURL
-
-```bash
-# Launch Chrome
-curl -X POST http://192.168.1.100:9091/api/launch   -H "Content-Type: application/json"   -d '{"packageName":"com.android.chrome"}'
-
-# Launch YouTube video
-curl -X POST http://192.168.1.100:9091/api/launch-intent   -H "Content-Type: application/json"   -d '{"packageName":"com.google.android.youtube","action":"android.intent.action.VIEW","data":"vnd.youtube://dQw4w9WgXcQ"}'
-
-# Launch camera app with specific camera
-curl -X POST http://192.168.1.100:9091/api/launch-intent   -H "Content-Type: application/json"   -d '{"packageName":"com.tpn.streamviewer","action":"android.intent.action.MAIN","data":"","extra_string":"camera_name:FRONTDOOR"}'
-
-# Uninstall an app
-curl -X POST http://192.168.1.100:9091/api/uninstall   -H "Content-Type: application/json"   -d '{"packageName":"com.example.app"}'
-
-# Upload APK
-curl -X POST http://192.168.1.100:9091/api/upload-apk   -F "file=@/path/to/app.apk"
-```
-
-#### Python
-
-```python
-import requests
-
-# Launch an app
-response = requests.post(
-  'http://192.168.1.100:9091/api/launch',
-  json={'packageName': 'com.android.chrome'}
-)
-print(response.json())
-
-# Launch with intent and extras
-response = requests.post(
-  'http://192.168.1.100:9091/api/launch-intent',
-  json={
-    'packageName': 'com.tpn.streamviewer',
-    'action': 'android.intent.action.MAIN',
-    'data': '',
-    'extra_string': 'camera_name:FRONTDOOR'
-  }
-)
-print(response.json())
-
-# Upload APK
-with open('app.apk', 'rb') as f:
-  files = {'file': f}
-  response = requests.post('http://192.168.1.100:9091/api/upload-apk', files=files)
-  print(response.json())
-```
-
-#### JavaScript
-
-```javascript
-// Launch an app
-fetch('http://192.168.1.100:9091/api/launch', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ packageName: 'com.android.chrome' })
-})
-.then(r => r.json())
-.then(data => console.log(data));
-
-// Launch with intent and extras
-fetch('http://192.168.1.100:9091/api/launch-intent', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    packageName: 'com.tpn.streamviewer',
-    action: 'android.intent.action.MAIN',
-    data: '',
-    extra_string: 'camera_name:FRONTDOOR'
-  })
-})
-.then(r => r.json())
-.then(data => console.log(data));
-
-// Upload APK
-const formData = new FormData();
-formData.append('file', fileInput.files);
-fetch('http://192.168.1.100:9091/api/upload-apk', {
-  method: 'POST',
-  body: formData
-})
-.then(r => r.json())
-.then(data => console.log(data));
 ```
 
 ---
 
-## On-Screen UI Access
+## UI Access
 
-The launcher UI is hidden by default. To access it:
+To open the settings interface on a headless display:
 
-1. Press **HOME** button (shows black screen)
-2. Tap center of screen **3 times quickly** (within 1 second)
-3. Settings UI appears
-4. Tap **"Hide UI"** to hide it again
+1. Return to the home screen (renders a black background)[cite: 8].
+2. Tap the center of the display three times within a 1-second window[cite: 8].
+3. Select **"Hide UI"** to return to headless mode[cite: 8].
 
 ---
 
 ## Configuration
 
-### Change Web Server Port
-
-Edit `LauncherService.kt`:
-
-```kotlin
-webServer = LauncherWebServer(9091, appLauncher) // Change 9091 to desired port
-```
-
-### Show System Apps
-
-Edit `AppLauncher.kt`, remove this line:
-
-```kotlin
-.filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 }
-```
-
-### Adjust Triple-Tap Sensitivity
-
-Edit `MainActivity.kt`:
-
-```kotlin
-if (currentTime - lastTapTime < 500) { // Increase/decrease time in ms
-    tapCount++
-    if (tapCount >= 3) { // Change number of required taps
-        showUI = !showUI
-    }
-}
-```
+- **Port Modification**: Edit the port parameter in `LauncherService.kt` (`LauncherWebServer(9091, ...)`[cite: 8]).
+- **App Query Scope**: `AppLauncher.kt` queries launchable applications via `PackageManager.queryIntentActivities()` using `CATEGORY_LAUNCHER`, including pre-installed system apps.
 
 ---
 
-## Caveats & Limitations
+## Limitations
 
-### ⚠️ Must Be Set as Default Launcher
-
-The app must be set as the default home launcher for app switching to work properly. Without this, launched apps will open in the background.
-
-### 🌐 Requires Network Access
-
-Both the device and control client must be on the same network. The web server only binds to the device's local network interface.
-
-### 🔓 No HTTPS Support
-
-The web server uses plain HTTP. Do not use over untrusted networks. Suitable for local network use only.
-
-### 📱 User Apps Only (Default)
-
-By default, only user-installed apps are shown. System apps (Settings, Calculator, etc.) are filtered out but can be included by modifying the code.
-
-### 🔔 Foreground Service Notification
-
-A persistent notification appears when the service is running. This is required by Android and cannot be hidden without root access.
-
-### 🔋 Battery Optimization
-
-On some devices, you may need to disable battery optimization for Display Launcher to ensure the service isn't killed:
-
-```
-Settings → Apps → Display Launcher → Battery → Unrestricted
-```
-
-### 🔐 No Authentication
-
-The web API has no authentication. Anyone on the network can control the device. Suitable for trusted networks only.
-
-### 📦 Install/Uninstall Requires User Confirmation
-
-Android security requires user confirmation for app installation and uninstallation. The dialogs appear on the device screen and must be approved manually.
-
-### 🔧 Intent Extras Format
-
-Intent extras are passed as strings. The receiving app must handle string-to-type conversion if needed.
+- **Default Home Requirement**: Must be registered as the default home launcher to ensure proper foreground task switching[cite: 8].
+- **Local Network Scope**: Restricted to local network interfaces; lacks TLS/HTTPS support[cite: 8].
+- **User Prompts**: Package installation and removal actions require manual confirmation via system dialogs on the physical display[cite: 8].
 
 ---
 
 ## Permissions
 
-| Permission                       | Purpose                          |
-|-----------------------------------|----------------------------------|
-| `INTERNET`                       | Required for web server          |
-| `FOREGROUND_SERVICE`              | Keeps service running            |
-| `FOREGROUND_SERVICE_SPECIAL_USE`  | Android 14+ requirement          |
-| `POST_NOTIFICATIONS`              | Shows foreground service notification |
-| `REQUEST_INSTALL_PACKAGES`        | Allows APK installation          |
-| `REQUEST_DELETE_PACKAGES`         | Allows app uninstallation        |
-| `HOME` category intent filter     | Allows app to be a launcher      |
+| Permission | Purpose |
+|---|---|
+| `INTERNET` | Binds local HTTP server[cite: 8]. |
+| `FOREGROUND_SERVICE` / `SPECIAL_USE` | Maintains background daemon execution[cite: 8]. |
+| `RECEIVE_BOOT_COMPLETED` | Triggers service initialization on system boot. |
+| `POST_NOTIFICATIONS` | Displays required foreground service notification[cite: 8]. |
+| `REQUEST_INSTALL_PACKAGES` / `DELETE_PACKAGES` | Handles application lifecycle intents[cite: 8]. |
 
 ---
 
 ## Troubleshooting
 
-### Apps don't launch when clicked
-
-- Verify Display Launcher is set as default home launcher
-- Check logcat: `adb logcat | grep AppLauncher`
-- Ensure device isn't in battery saver mode
-
-### Can't access web interface
-
-- Verify device is on the same network
-- Check device IP address in settings
-- Try accessing `http://[ip]:9091` directly
-- Check firewall settings on controlling device
-
-### Service stops randomly
-
-- Disable battery optimization for Display Launcher
-- Check for aggressive task killers
-- Verify foreground service notification is visible
-
-### UI doesn't appear with triple-tap
-
-- Tap faster (within 500ms between taps)
-- Ensure tapping center of screen
-- Try tapping exact center multiple times
-
-### Install/Uninstall doesn't work
-
-- Check that the install/uninstall dialog appears on the device screen
-- Verify permissions are granted in Android Settings
-- Check logcat for errors: `adb logcat | grep DisplayLauncher`
-- Ensure APK file is valid (for uploads)
-
-### Intent extras not received by app
-
-- Verify the target app supports intent extras
-- Check that extra key names match what the app expects (case-sensitive)
-- Test with ADB: `adb shell am start -n com.package/.Activity --es key value`
-- Enable logcat on both launcher and target app to debug
+- **Service Persistence**: Ensure battery optimization is disabled for the application if the OS terminates the background service[cite: 8].
+- **Network Validation**: Verify interface connectivity and local port availability (`9091`)[cite: 8].
+- **Logcat Verification**: Inspect logs using `adb logcat | grep DisplayLauncher`[cite: 8].
 
 ---
 
-## Technical Details
+## Technical Specifications
 
-### Architecture
+- **Language**: Kotlin[cite: 8]
+- **UI Framework**: Jetpack Compose[cite: 8]
+- **HTTP Server**: NanoHTTPD[cite: 8]
+- **Serialization**: Gson[cite: 8]
+- **Min SDK**: 24[cite: 8]
+- **Target SDK**: 35[cite: 8]
 
-- Kotlin with Jetpack Compose UI
-- NanoHTTPD embedded web server
-- Gson for JSON serialization
-- Foreground Service for persistence
-- FileProvider for secure APK file handling
+---
 
-### Build Configuration
+## Examples
 
-- **Min SDK:** 24 (Android 7.0)
-- **Target SDK:** 35 (Android 15)
-- **Compile SDK:** 35
-- **Kotlin:** 2.0.0
-- **AGP:** 8.13.0
+### cURL
 
-### Package Structure
+```bash
+# Launch Chrome
+curl -X POST [http://192.168.1.100:9091/api/launch](http://192.168.1.100:9091/api/launch) -H "Content-Type: application/json" -d '{"packageName":"com.android.chrome"}'
 
+# Launch Intent with Extras
+curl -X POST [http://192.168.1.100:9091/api/launch-intent](http://192.168.1.100:9091/api/launch-intent) -H "Content-Type: application/json" -d '{"packageName":"com.tpn.streamviewer","action":"android.intent.action.MAIN","extra_string":"camera_name:FRONTDOOR"}'
 ```
-com.tpn.displaylauncher/
-├── MainActivity.kt # Main launcher activity with UI
-├── LauncherService.kt # Foreground service
-├── LauncherWebServer.kt # HTTP server implementation
-├── AppLauncher.kt # App management logic with intent extras support
-├── InstallActivity.kt # APK installation handler
-└── UninstallActivity.kt # App uninstallation handler
+
+### Python
+
+```python
+import requests
+
+requests.post('[http://192.168.1.100:9091/api/launch](http://192.168.1.100:9091/api/launch)', json={'packageName': 'com.android.chrome'})
 ```
 
 ---
 
 ## Documentation
 
-- **[API Reference](./API.md)** - Complete REST API documentation with all endpoints, parameters, and examples including intent extras support
-- **[Home Assistant Integration Guide](./HomeAssistant.md)** - Comprehensive guide for Home Assistant automation, scripts, and dashboard setup with intent examples
+- **[API Reference](./API.md)** - Detailed REST API endpoint specification.
+- **[Home Assistant Integration Guide](./HomeAssistant.md)** - Integration examples for automation platforms.

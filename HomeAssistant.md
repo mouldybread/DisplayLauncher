@@ -1,169 +1,111 @@
 # Home Assistant Integration Guide
 
-Complete guide for integrating Display Launcher with Home Assistant for automated digital signage control, including support for intent extras.
+Complete guide for integrating Display Launcher with Home Assistant for automated digital signage, kiosk management, and stream controller integration using REST commands and intent extras.
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
-- [Basic Setup](#basic-setup)
-- [REST Commands](#rest-commands)
+- [REST Commands Setup](#rest-commands-setup)
 - [Input Helpers](#input-helpers)
 - [Scripts](#scripts)
 - [Automation Examples](#automation-examples)
 - [Advanced Examples](#advanced-examples)
 - [Intent Extras Integration](#intent-extras-integration)
 - [Troubleshooting](#troubleshooting)
+- [Complete Package Configuration](#complete-package-configuration)
+- [Additional Resources](#additional-resources)
 
 ---
 
 ## Overview
 
-Display Launcher's REST API makes it perfect for Home Assistant automation. Control your Android displays based on:
+Display Launcher's REST API allows Home Assistant to control target Android displays based on:
 
-- **Time of day** - Switch content on a schedule
-- **Presence** - Show specific content when home/away
-- **Motion sensors** - Wake displays when movement detected
-- **Media playback** - Auto-launch apps when playing media
-- **Manual control** - Dashboards and scripts for one-touch control
-- **App-specific parameters** - Launch apps with custom configurations using intent extras
+- **Time schedules** - Content rotation throughout the day.
+- **Presence & Motion** - Waking displays or loading state-specific views when movement or user presence is detected.
+- **Doorbell & Alarm Events** - Automating popups and deep links (e.g., camera feeds on doorbell ring).
+- **Custom App Parameters** - Passing intent extras directly to target applications (such as camera names, media URLs, or display parameters).
 
 ---
 
 ## Prerequisites
 
-1. Display Launcher installed on Android device(s)
-2. Device set as default launcher
-3. Device IP address(es) (set static IPs recommended)
-4. Home Assistant instance on same network
-5. Complete API reference: [API.md](./API.md)
+1. Display Launcher installed and set as the default launcher on target Android devices[cite: 8].
+2. Static IP addresses assigned to target Android devices.
+3. Home Assistant instance on the same local network[cite: 8].
+4. Reference documentation: [API Reference](./API.md), [README](./README.md)[cite: 8].
 
 ---
 
-## Basic Setup
+## REST Commands Setup
 
-### Step 1: Add REST Commands
-
-Add these to your `configuration.yaml`:
+Add the following REST commands to your `configuration.yaml` (or within a package file). These commands provide endpoints for standard app launches, intent launches with extras, and remote package removal.
 
 ```yaml
 rest_command:
-  # Launch app on specific device
-  launch_app_device:
+  # Launch app on a specific device by package name
+  display_launcher_launch_app:
     url: "http://{{ device_ip }}:9091/api/launch"
     method: POST
     content_type: "application/json"
     payload: '{"packageName":"{{ package_name }}"}'
-  # Launch app with intent (YouTube, URLs, deep links)
-  launch_app_with_intent:
+
+  # Launch app with intent actions, data URIs, and extra string parameters
+  display_launcher_launch_intent:
     url: "http://{{ device_ip }}:9091/api/launch-intent"
     method: POST
     content_type: "application/json"
-    payload: '{"packageName":"{{ package_name }}","action":"{{ action }}","data":"{{ data }}","extra_string":"{{ extra_string | default("") }}"}'
+    payload: >-
+      {
+        "packageName": "{{ package_name }}",
+        "action": "{{ action | default('android.intent.action.MAIN') }}",
+        "data": "{{ data | default('') }}",
+        "extra_string": "{{ extra_string | default('') }}"
+      }
     timeout: 10
-  # Uninstall app
-  uninstall_app:
+
+  # Trigger remote uninstall prompt on target device
+  display_launcher_uninstall_app:
     url: "http://{{ device_ip }}:9091/api/uninstall"
     method: POST
     content_type: "application/json"
     payload: '{"packageName":"{{ package_name }}"}'
 ```
 
-### Step 2: Restart Home Assistant
-
-```
-Developer Tools → YAML → Restart
-```
-
-### Step 3: Test
-
-```yaml
-service: rest_command.launch_app_device
-data:
-  device_ip: "192.168.1.100"
-  package_name: "com.android.chrome"
-```
-
----
-
-## REST Commands
-
-Complete REST command configuration with intent extras support:
-
-```yaml
-rest_command:
-  # Basic app launch
-  launch_app_device:
-    url: "http://{{ device_ip }}:9091/api/launch"
-    method: POST
-    content_type: "application/json"
-    payload: '{"packageName":"{{ package_name }}"}'
-  # Launch with intent and extras
-  launch_app_with_intent:
-    url: "http://{{ device_ip }}:9091/api/launch-intent"
-    method: POST
-    content_type: "application/json"
-    payload: '{"packageName":"{{ package_name }}","action":"{{ action }}","data":"{{ data }}","extra_string":"{{ extra_string | default("") }}"}'
-    timeout: 10
-  # Uninstall app
-  uninstall_app:
-    url: "http://{{ device_ip }}:9091/api/uninstall"
-    method: POST
-    content_type: "application/json"
-    payload: '{"packageName":"{{ package_name }}"}'
-```
+After updating `configuration.yaml`, reload REST commands via **Developer Tools → YAML → REST Commands**.
 
 ---
 
 ## Input Helpers
 
-Create these helpers for easier automation.
+Define input helpers in Home Assistant to facilitate dashboard controls and dynamic UI selection.
 
-### Input Select - Devices
+### Input Selects
 
 ```yaml
 input_select:
   display_launcher_device:
-    name: Display Device
+    name: Target Display Device
     options:
       - All Devices
       - Living Room (192.168.1.100)
       - Kitchen (192.168.1.101)
       - Bedroom (192.168.1.102)
-    initial: All Devices
+    initial: Living Room (192.168.1.100)
     icon: mdi:television
-```
 
-### Input Select - Apps
-
-```yaml
-input_select:
   display_launcher_app:
-    name: Launch App
+    name: Target Application
     options:
       - Chrome (com.android.chrome)
       - YouTube (com.google.android.youtube)
       - Netflix (com.netflix.mediaclient)
       - Stream Viewer (com.tpn.streamviewer)
     icon: mdi:application
-```
 
-### Input Text - YouTube Video ID
-
-```yaml
-input_text:
-  youtube_video_id:
-    name: YouTube Video ID
-    initial: ""
-    icon: mdi:youtube
-```
-
-### Input Select - Camera Names (for Stream Viewer)
-
-```yaml
-input_select:
-  camera_name:
-    name: Camera to Display
+  stream_viewer_camera:
+    name: Stream Viewer Camera
     options:
       - FRONTDOOR
       - DRIVEWAY
@@ -173,11 +115,23 @@ input_select:
     icon: mdi:cctv
 ```
 
+### Input Text
+
+```yaml
+input_text:
+  youtube_video_id:
+    name: YouTube Video ID
+    initial: ""
+    icon: mdi:youtube
+```
+
 ---
 
 ## Scripts
 
-### Script: Launch App
+### Launch App Handler
+
+Generic script parsing device IP and package name from input string helpers.
 
 ```yaml
 script:
@@ -185,50 +139,50 @@ script:
     alias: Launch Display App
     fields:
       device:
-        description: Device name or IP
+        description: Device selection string containing IP address
         example: "Living Room (192.168.1.100)"
       app:
-        description: App with package name
+        description: Application selection string containing package name
         example: "Chrome (com.android.chrome)"
     sequence:
       - variables:
-          # Extract IP from device string
           device_ip: >
-            {% if "All Devices" in device %}
-              ""
-            {% else %}
+            {% if "(" in device and ")" in device %}
               {{ device.split("(")[1].split(")")[0] }}
+            {% else %}
+              {{ device }}
             {% endif %}
-          # Extract package name from app string
           package_name: >
-            {{ app.split("(")[1].split(")")[0] }}
+            {% if "(" in app and ")" in app %}
+              {{ app.split("(")[1].split(")")[0] }}
+            {% else %}
+              {{ app }}
+            {% endif %}
       - choose:
-          # Launch on all devices
           - conditions:
               - condition: template
-                value_template: "{{ device_ip == '' }}"
+                value_template: "{{ device == 'All Devices' }}"
             sequence:
-              - service: rest_command.launch_app_device
+              - action: rest_command.display_launcher_launch_app
                 data:
                   device_ip: "192.168.1.100"
                   package_name: "{{ package_name }}"
-              - service: rest_command.launch_app_device
+              - action: rest_command.display_launcher_launch_app
                 data:
                   device_ip: "192.168.1.101"
                   package_name: "{{ package_name }}"
-              - service: rest_command.launch_app_device
+              - action: rest_command.display_launcher_launch_app
                 data:
                   device_ip: "192.168.1.102"
                   package_name: "{{ package_name }}"
-        # Launch on specific device
         default:
-          - service: rest_command.launch_app_device
+          - action: rest_command.display_launcher_launch_app
             data:
               device_ip: "{{ device_ip }}"
               package_name: "{{ package_name }}"
 ```
 
-### Script: Launch YouTube Video
+### Launch YouTube Video
 
 ```yaml
 script:
@@ -236,22 +190,21 @@ script:
     alias: Launch YouTube Video
     fields:
       device_ip:
-        description: Device IP address
+        description: Target device IP address
         example: "192.168.1.100"
       video_id:
-        description: YouTube video ID
+        description: YouTube video identifier
         example: "dQw4w9WgXcQ"
     sequence:
-      - service: rest_command.launch_app_with_intent
+      - action: rest_command.display_launcher_launch_intent
         data:
           device_ip: "{{ device_ip }}"
           package_name: "com.google.android.youtube"
           action: "android.intent.action.VIEW"
           data: "vnd.youtube://{{ video_id }}"
-          extra_string: ""
 ```
 
-### Script: Launch Camera App with Specific Camera (NEW)
+### Launch Stream Viewer Camera
 
 ```yaml
 script:
@@ -259,13 +212,13 @@ script:
     alias: Launch Camera View
     fields:
       device_ip:
-        description: Device IP address
+        description: Target device IP address
         example: "192.168.1.100"
       camera_name:
-        description: Camera name to display
+        description: Camera name identifier passed via intent extra
         example: "FRONTDOOR"
     sequence:
-      - service: rest_command.launch_app_with_intent
+      - action: rest_command.display_launcher_launch_intent
         data:
           device_ip: "{{ device_ip }}"
           package_name: "com.tpn.streamviewer"
@@ -274,7 +227,7 @@ script:
           extra_string: "camera_name:{{ camera_name }}"
 ```
 
-### Script: Open URL
+### Open Web URL in Browser
 
 ```yaml
 script:
@@ -282,537 +235,274 @@ script:
     alias: Display Open URL
     fields:
       device_ip:
-        description: Device IP address
+        description: Target device IP address
         example: "192.168.1.100"
       url:
-        description: URL to open
-        example: "https://example.com"
+        description: Destination HTTP/HTTPS URL
+        example: "[https://example.com](https://example.com)"
     sequence:
-      - service: rest_command.launch_app_with_intent
+      - action: rest_command.display_launcher_launch_intent
         data:
           device_ip: "{{ device_ip }}"
           package_name: "com.android.chrome"
           action: "android.intent.action.VIEW"
           data: "{{ url }}"
-          extra_string: ""
 ```
 
 ---
 
 ## Automation Examples
 
-### Example 1: Schedule-Based Content Rotation
+### Schedule-Based Application Launching
 
 ```yaml
 automation:
-  - alias: Display Schedule - Morning News
+  - alias: "Display Schedule: Morning Dashboard"
     trigger:
-      platform: time
-      at: "07:00:00"
+      - trigger: time
+        at: "07:00:00"
     action:
-      service: script.launch_display_app
-      data:
-        device: "Living Room (192.168.1.100)"
-        app: "YouTube (com.google.android.youtube)"
-  - alias: Display Schedule - Evening Netflix
+      - action: script.launch_display_app
+        data:
+          device: "192.168.1.100"
+          app: "io.homeassistant.companion.android"
+
+  - alias: "Display Schedule: Evening Entertainment"
     trigger:
-      platform: time
-      at: "19:00:00"
+      - trigger: time
+        at: "19:00:00"
     action:
-      service: script.launch_display_app
-      data:
-        device: "Living Room (192.168.1.100)"
-        app: "Netflix (com.netflix.mediaclient)"
+      - action: script.launch_display_app
+        data:
+          device: "192.168.1.100"
+          app: "com.netflix.mediaclient"
 ```
 
-### Example 2: Motion-Activated Display
+### Motion Sensor Activation
 
 ```yaml
 automation:
-  - alias: Display Wake on Motion
+  - alias: "Display: Switch to Home Assistant on Motion"
     trigger:
-      platform: state
-      entity_id: binary_sensor.living_room_motion
-      to: "on"
+      - trigger: state
+        entity_id: binary_sensor.living_room_motion
+        to: "on"
     condition:
-      condition: time
-      after: "06:00:00"
-      before: "23:00:00"
+      - condition: time
+        after: "06:00:00"
+        before: "23:00:00"
     action:
-      service: script.launch_display_app
-      data:
-        device: "Living Room (192.168.1.100)"
-        app: "Home Assistant (io.homeassistant.companion.android)"
+      - action: script.launch_display_app
+        data:
+          device: "192.168.1.100"
+          app: "io.homeassistant.companion.android"
 ```
 
-### Example 3: Presence-Based Automation
+### Doorbell Event Integration
 
 ```yaml
 automation:
-  - alias: Display Welcome Home
+  - alias: "Display: Show Front Door Camera on Doorbell Press"
     trigger:
-      platform: state
-      entity_id: person.john
-      to: "home"
+      - trigger: state
+        entity_id: binary_sensor.doorbell_ring
+        to: "on"
     action:
-      service: script.launch_youtube_video
-      data:
-        device_ip: "192.168.1.100"
-        video_id: "{{ states('sensor.favorite_video_id') }}"
-```
-
-### Example 4: Doorbell Camera Display (NEW)
-
-```yaml
-automation:
-  - alias: Show Front Door Camera on Doorbell
-    trigger:
-      platform: state
-      entity_id: binary_sensor.doorbell
-      to: "on"
-    action:
-      service: script.launch_camera_view
-      data:
-        device_ip: "192.168.1.100"
-        camera_name: "FRONTDOOR"
-```
-
-### Example 5: Manual Control Dashboard
-
-```yaml
-# In your Lovelace dashboard
-type: vertical-stack
-cards:
-  - type: entities
-    title: Display Launcher Control
-    entities:
-      - entity: input_select.display_launcher_device
-      - entity: input_select.display_launcher_app
-      - entity: input_select.camera_name
-  - type: horizontal-stack
-    cards:
-      - type: button
-        name: Launch App
-        tap_action:
-          action: call-service
-          service: script.launch_display_app
-          service_data:
-            device: "{{ states('input_select.display_launcher_device') }}"
-            app: "{{ states('input_select.display_launcher_app') }}"
-      - type: button
-        name: Launch Camera
-        tap_action:
-          action: call-service
-          service: script.launch_camera_view
-          service_data:
-            device_ip: "192.168.1.100"
-            camera_name: "{{ states('input_select.camera_name') }}"
-```
-
-### Example 6: Rotate YouTube Live Streams
-
-```yaml
-automation:
-  - alias: Rotate Live Streams
-    trigger:
-      platform: time_pattern
-      minutes: "/15" # Every 15 minutes
-    action:
-      service: script.launch_youtube_video
-      data:
-        device_ip: "192.168.1.100"
-        video_id: "{{ states('sensor.current_live_stream') }}"
+      - action: script.launch_camera_view
+        data:
+          device_ip: "192.168.1.100"
+          camera_name: "FRONTDOOR"
 ```
 
 ---
 
 ## Advanced Examples
 
-### Multi-Device Synchronized Launch
+### Synchronized Multi-Display Launch
 
 ```yaml
 script:
   launch_all_displays_sync:
-    alias: Launch All Displays (Synchronized)
+    alias: Synchronized Launch across All Displays
     fields:
-      app:
-        description: App package name
+      package_name:
+        description: Target package identifier
         example: "com.android.chrome"
     sequence:
       - parallel:
-          - service: rest_command.launch_app_device
+          - action: rest_command.display_launcher_launch_app
             data:
               device_ip: "192.168.1.100"
-              package_name: "{{ app }}"
-          - service: rest_command.launch_app_device
+              package_name: "{{ package_name }}"
+          - action: rest_command.display_launcher_launch_app
             data:
               device_ip: "192.168.1.101"
-              package_name: "{{ app }}"
-          - service: rest_command.launch_app_device
+              package_name: "{{ package_name }}"
+          - action: rest_command.display_launcher_launch_app
             data:
               device_ip: "192.168.1.102"
-              package_name: "{{ app }}"
+              package_name: "{{ package_name }}"
 ```
 
-### Dynamic YouTube Playlist Rotation
+### Dynamic Camera Rotation Sequence
 
 ```yaml
 automation:
-  - alias: YouTube Playlist Rotation
+  - alias: "Display: Rotate Security Cameras"
     trigger:
-      platform: time_pattern
-      minutes: "/10"
+      - trigger: time_pattern
+        minutes: "/5"
     action:
-      service: script.launch_youtube_video
-      data:
-        device_ip: "192.168.1.100"
-        video_id: >
-          {% set videos = [
-            'dQw4w9WgXcQ',
-            'oHg5SJYRHA0',
-            'L_jWHffIx5E'
-          ] %}
-          {{ videos | random }}
-```
-
-### Conditional Content Based on Time
-
-```yaml
-automation:
-  - alias: Smart Display Content
-    trigger:
-      platform: time_pattern
-      hours: "*"
-    action:
-      choose:
-        # Morning: News
-        - conditions:
-            - condition: time
-              after: "06:00:00"
-              before: "12:00:00"
-          sequence:
-            - service: script.launch_display_app
-              data:
-                device: "Living Room (192.168.1.100)"
-                app: "YouTube (com.google.android.youtube)"
-        # Afternoon: Home Dashboard
-        - conditions:
-            - condition: time
-              after: "12:00:00"
-              before: "18:00:00"
-          sequence:
-            - service: script.launch_display_app
-              data:
-                device: "Living Room (192.168.1.100)"
-                app: "Home Assistant (io.homeassistant.companion.android)"
-        # Evening: Entertainment
-        - conditions:
-            - condition: time
-              after: "18:00:00"
-              before: "23:00:00"
-          sequence:
-            - service: script.launch_display_app
-              data:
-                device: "Living Room (192.168.1.100)"
-                app: "Netflix (com.netflix.mediaclient)"
+      - action: rest_command.display_launcher_launch_intent
+        data:
+          device_ip: "192.168.1.100"
+          package_name: "com.tpn.streamviewer"
+          action: "android.intent.action.MAIN"
+          extra_string: >
+            {% set cameras = ['FRONTDOOR', 'DRIVEWAY', 'BACKYARD', 'GARAGE'] %}
+            {% set index = (now().minute // 5) % 4 %}
+            camera_name:{{ cameras[index] }}
 ```
 
 ---
 
 ## Intent Extras Integration
 
-### Camera Rotation Across Multiple Displays
+### Multi-Extra Key-Value Formatting
 
-Rotate different cameras on multiple displays using intent extras:
-
-```yaml
-automation:
-  - alias: Camera Rotation - 3 Displays
-    trigger:
-      platform: time_pattern
-      minutes: "/5" # Every 5 minutes
-    action:
-      - parallel:
-          # Device 1: FRONTDOOR
-          - service: rest_command.launch_app_with_intent
-            data:
-              device_ip: "192.168.1.100"
-              package_name: "com.tpn.streamviewer"
-              action: "android.intent.action.MAIN"
-              data: ""
-              extra_string: "camera_name:FRONTDOOR"
-          # Device 2: DRIVEWAY
-          - service: rest_command.launch_app_with_intent
-            data:
-              device_ip: "192.168.1.101"
-              package_name: "com.tpn.streamviewer"
-              action: "android.intent.action.MAIN"
-              data: ""
-              extra_string: "camera_name:DRIVEWAY"
-          # Device 3: BACKYARD
-          - service: rest_command.launch_app_with_intent
-            data:
-              device_ip: "192.168.1.102"
-              package_name: "com.tpn.streamviewer"
-              action: "android.intent.action.MAIN"
-              data: ""
-              extra_string: "camera_name:BACKYARD"
-      # Wait 5 minutes, then rotate
-      - delay:
-          minutes: 5
-      - parallel:
-          # Rotate cameras
-          - service: rest_command.launch_app_with_intent
-            data:
-              device_ip: "192.168.1.100"
-              package_name: "com.tpn.streamviewer"
-              action: "android.intent.action.MAIN"
-              data: ""
-              extra_string: "camera_name:DRIVEWAY"
-          - service: rest_command.launch_app_with_intent
-            data:
-              device_ip: "192.168.1.101"
-              package_name: "com.tpn.streamviewer"
-              action: "android.intent.action.MAIN"
-              data: ""
-              extra_string: "camera_name:BACKYARD"
-          - service: rest_command.launch_app_with_intent
-            data:
-              device_ip: "192.168.1.102"
-              package_name: "com.tpn.streamviewer"
-              action: "android.intent.action.MAIN"
-              data: ""
-              extra_string: "camera_name:FRONTDOOR"
-```
-
-### App with Multiple Parameters
-
-Launch app with multiple custom parameters:
+The `extra_string` field accepts comma-separated key-value pairs formatted as `key1:value1,key2:value2`.
 
 ```yaml
 script:
-  launch_app_with_params:
-    alias: Launch App with Parameters
+  launch_app_multi_extras:
+    alias: Launch App with Multiple Extras
     fields:
       device_ip:
         description: Device IP
       package_name:
-        description: App package name
-      param1:
-        description: First parameter
-      param2:
-        description: Second parameter
+        description: Target Package Name
+      extra_pairs:
+        description: Formatted extra string (e.g., key1:val1,key2:val2)
     sequence:
-      - service: rest_command.launch_app_with_intent
+      - action: rest_command.display_launcher_launch_intent
         data:
           device_ip: "{{ device_ip }}"
           package_name: "{{ package_name }}"
           action: "android.intent.action.MAIN"
-          data: ""
-          extra_string: "param1:{{ param1 }},param2:{{ param2 }}"
-```
-
-### Conditional Camera Display
-
-Display different cameras based on conditions:
-
-```yaml
-automation:
-  - alias: Smart Camera Display
-    trigger:
-      platform: state
-      entity_id: binary_sensor.motion_sensor
-      to: "on"
-    action:
-      service: rest_command.launch_app_with_intent
-      data:
-        device_ip: "192.168.1.100"
-        package_name: "com.tpn.streamviewer"
-        action: "android.intent.action.MAIN"
-        data: ""
-        extra_string: >
-          {% if is_state('sun.sun', 'below_horizon') %}
-            camera_name:NIGHTVISION
-          {% else %}
-            camera_name:FRONTDOOR
-          {% endif %}
+          extra_string: "{{ extra_pairs }}"
 ```
 
 ---
 
 ## Troubleshooting
 
-### REST Command Fails
+### Connection & Execution Errors
 
-**Check connection:**
+1. **REST Command Timeout / Failure**:
+   Validate API reachability directly via terminal:
+   ```bash
+   curl -X GET [http://192.168.1.100:9091/api/apps](http://192.168.1.100:9091/api/apps)
+   ```
 
-```bash
-curl http://192.168.1.100:9091/api/apps
-```
+2. **Enable Home Assistant Debug Logging**:
+   Add to `configuration.yaml` to inspect outgoing HTTP request payloads:
+   ```yaml
+   logger:
+     default: info
+     logs:
+       homeassistant.components.rest_command: debug
+   ```
 
-**Enable logging:**
+3. **App Does Not Reach Foreground**:
+   Ensure Display Launcher is registered as the default Home activity on the target Android device[cite: 8].
 
-```yaml
-logger:
-  default: info
-  logs:
-    homeassistant.components.rest_command: debug
-```
-
-### App Doesn't Launch
-
-1. Verify package name is correct
-2. Check Display Launcher is set as default launcher
-3. Test manually via web interface first
-4. Check Home Assistant logs
-
-### Intent Extras Not Working
-
-1. Verify `extra_string` format: `key:value,key2:value2`
-2. Check that target app supports the extras
-3. Test with ADB: `adb shell am start -n package/.Activity --es key value`
-4. Enable logging in target app to verify receipt
-5. Ensure no special characters in values (use only alphanumeric and underscores)
-
-### Camera Not Loading
-
-1. Verify camera name matches exactly (case-sensitive)
-2. Check that camera exists in Stream Viewer configuration
-3. Ensure go2rtc server URL is configured in Stream Viewer
-4. Test camera manually in Stream Viewer web UI first
-
-### Template Errors
-
-Test templates in Developer Tools → Template:
-
-```yaml
-{% set device = "Living Room (192.168.1.100)" %}
-{{ device.split("(")[1].split(")")[0] }}
-```
-
-### Service Not Found
-
-Restart Home Assistant after adding REST commands:
-
-```
-Developer Tools → YAML → Restart
-```
+4. **Intent Extras Unhandled**:
+    - Verify parameter key case sensitivity.
+    - Confirm target app explicitly checks intent extras on activity startup.
+    - Verify via ADB:
+      ```bash
+      adb shell am start -n com.tpn.streamviewer/.MainActivity --es camera_name FRONTDOOR
+      ```
 
 ---
 
-## Complete Example Configuration
+## Complete Package Configuration
 
-Save as `packages/display_launcher.yaml`:
+Save the unified configuration below to `packages/display_launcher.yaml` for modular integration:
 
 ```yaml
-# Display Launcher Integration Package
+# Display Launcher Home Assistant Package
 input_select:
   display_device:
-    name: Display Device
+    name: Target Display Device
     options:
-      - All Devices
       - Living Room (192.168.1.100)
       - Kitchen (192.168.1.101)
-    initial: All Devices
-    icon: mdi:television
   display_app:
-    name: Display App
+    name: Target Display App
     options:
       - Chrome (com.android.chrome)
       - YouTube (com.google.android.youtube)
       - Stream Viewer (com.tpn.streamviewer)
-    icon: mdi:application
   camera_name:
-    name: Camera Name
+    name: Camera Selection
     options:
       - FRONTDOOR
       - DRIVEWAY
       - BACKYARD
-    initial: FRONTDOOR
-    icon: mdi:cctv
 
 rest_command:
-  launch_app_device:
+  display_launcher_launch_app:
     url: "http://{{ device_ip }}:9091/api/launch"
     method: POST
     content_type: "application/json"
     payload: '{"packageName":"{{ package_name }}"}'
-  launch_app_with_intent:
+
+  display_launcher_launch_intent:
     url: "http://{{ device_ip }}:9091/api/launch-intent"
     method: POST
     content_type: "application/json"
-    payload: '{"packageName":"{{ package_name }}","action":"{{ action }}","data":"{{ data }}","extra_string":"{{ extra_string | default("") }}"}'
-    timeout: 10
+    payload: >-
+      {
+        "packageName": "{{ package_name }}",
+        "action": "{{ action | default('android.intent.action.MAIN') }}",
+        "data": "{{ data | default('') }}",
+        "extra_string": "{{ extra_string | default('') }}"
+      }
 
 script:
   launch_display:
-    alias: Launch Display App
-    fields:
-      device:
-        description: Device
-      app:
-        description: App
+    alias: Launch Selected Display App
     sequence:
       - variables:
-          device_ip: >
-            {% if "All" not in device %}
-              {{ device.split("(")[1].split(")")[0] }}
-            {% else %}
-              ""
-            {% endif %}
-          package_name: >
-            {{ app.split("(")[1].split(")")[0] }}
-      - service: rest_command.launch_app_device
+          device_raw: "{{ states('input_select.display_device') }}"
+          app_raw: "{{ states('input_select.display_app') }}"
+          device_ip: "{{ device_raw.split('(')[1].split(')')[0] }}"
+          package_name: "{{ app_raw.split('(')[1].split(')')[0] }}"
+      - action: rest_command.display_launcher_launch_app
         data:
-          device_ip: "{{ device_ip if device_ip else '192.168.1.100' }}"
+          device_ip: "{{ device_ip }}"
           package_name: "{{ package_name }}"
-  launch_camera_view:
-    alias: Launch Camera View
-    fields:
-      device:
-        description: Device
-      camera:
-        description: Camera name
+
+  launch_camera_selected:
+    alias: Launch Selected Camera View
     sequence:
       - variables:
-          device_ip: >
-            {{ device.split("(")[1].split(")")[0] }}
-      - service: rest_command.launch_app_with_intent
+          device_raw: "{{ states('input_select.display_device') }}"
+          device_ip: "{{ device_raw.split('(')[1].split(')')[0] }}"
+          camera: "{{ states('input_select.camera_name') }}"
+      - action: rest_command.display_launcher_launch_intent
         data:
           device_ip: "{{ device_ip }}"
           package_name: "com.tpn.streamviewer"
           action: "android.intent.action.MAIN"
-          data: ""
           extra_string: "camera_name:{{ camera }}"
-
-automation:
-  - alias: Display Morning Routine
-    trigger:
-      platform: time
-      at: "07:00:00"
-    action:
-      service: script.launch_display
-      data:
-        device: "Living Room (192.168.1.100)"
-        app: "YouTube (com.google.android.youtube)"
-  - alias: Show Camera on Motion
-    trigger:
-      platform: state
-      entity_id: binary_sensor.front_door_motion
-      to: "on"
-    action:
-      service: script.launch_camera_view
-      data:
-        device: "Living Room (192.168.1.100)"
-        camera: "FRONTDOOR"
 ```
 
 ---
 
 ## Additional Resources
 
-- [Display Launcher API Reference](./API.md)
-- [Display Launcher README](./README.md)
-- [Home Assistant REST Command Documentation](https://www.home-assistant.io/integrations/rest_command/)
-- [Home Assistant Templating](https://www.home-assistant.io/docs/configuration/templating/)
-- [Android Intent Documentation](https://developer.android.com/reference/android/content/Intent)
+- [Display Launcher REST API Reference](./API.md)
+- [Home Assistant REST Command Integration](https://www.home-assistant.io/integrations/rest_command/)
+- [Android Developer Intent Documentation](https://developer.android.com/reference/android/content/Intent)
