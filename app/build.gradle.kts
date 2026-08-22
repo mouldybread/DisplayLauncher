@@ -1,10 +1,12 @@
+import com.android.build.api.dsl.ApplicationExtension
+
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
 }
 
-android {
+extensions.configure<ApplicationExtension> {
     namespace = "com.tpn.displaylauncher"
     compileSdk = 35
 
@@ -12,8 +14,9 @@ android {
         applicationId = "com.tpn.displaylauncher"
         minSdk = 24
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.3.2"
+
+        versionCode = (project.findProperty("CI_VERSION_CODE") as? String)?.toIntOrNull() ?: 5
+        versionName = project.findProperty("CI_VERSION_NAME") as? String ?: "0.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -42,40 +45,33 @@ android {
         compose = true
     }
 
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+    }
+}
+
 dependencies {
-    // Jetpack Compose BOM (Bill of Materials)
-    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+    implementation(platform(libs.androidx.compose.bom))
 
-    // Jetpack Compose
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
 
-    // Compose Activity
-    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
 
-    // Core Android
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation(libs.nanohttpd)
+    implementation(libs.gson)
 
-    // NanoHTTPD for embedded web server
-    implementation("org.nanohttpd:nanohttpd:2.3.1")
-
-    // Gson for JSON handling
-    implementation("com.google.code.gson:gson:2.10.1")
-
-    // Debug tooling
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
 }
