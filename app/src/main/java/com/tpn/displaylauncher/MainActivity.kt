@@ -20,6 +20,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
@@ -62,6 +64,9 @@ class MainActivity : ComponentActivity() {
         val listState = rememberLazyListState()
         val coroutineScope = rememberCoroutineScope()
 
+        // Focus requester for reliable D-pad / Android TV navigation
+        val focusRequester = remember { FocusRequester() }
+
         val allApps = remember { mutableStateOf(appLauncher.getInstalledApps()) }
         val totalItems = 3 + allApps.value.size
 
@@ -70,12 +75,21 @@ class MainActivity : ComponentActivity() {
                 prefs.edit().putBoolean("has_seen_ui", true).apply()
                 hasSeenUI = true
             }
+            // Request focus immediately when settings UI opens
+            if (showUI) {
+                try {
+                    focusRequester.requestFocus()
+                } catch (e: Exception) {
+                    // Ignore if node is not yet attached
+                }
+            }
         }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(if (showUI) Color(0xFF667eea) else Color.Black)
+                .focusRequester(focusRequester) // Bind focus requester here
                 .onKeyEvent { keyEvent ->
                     if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                         when (keyEvent.nativeKeyEvent.keyCode) {

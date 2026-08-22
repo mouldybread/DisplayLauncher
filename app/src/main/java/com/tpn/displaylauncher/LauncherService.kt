@@ -77,9 +77,21 @@ class LauncherService : Service() {
             .setOngoing(true)
             .build()
 
-        startForeground(NOTIFICATION_ID, notification)
-    }
+        try {
+            // On Android 13+ (API 33), check if POST_NOTIFICATIONS is granted.
+            // Note: We still call startForeground() regardless, as the OS requires it
+            // to prevent foreground service timeout crashes, but the OS will safely
+            // suppress the visual notification if the runtime permission is denied.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                Log.w(TAG, "POST_NOTIFICATIONS permission is not granted. Service will run, but notification display will be suppressed.")
+            }
 
+            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start foreground service: ${e.message}", e)
+        }
+    }
     private fun startWebServer() {
         try {
             stopWebServer()
