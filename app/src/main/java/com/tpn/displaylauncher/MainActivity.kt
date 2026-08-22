@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
                 .onKeyEvent { keyEvent ->
                     if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                         when (keyEvent.nativeKeyEvent.keyCode) {
-                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                            KeyEvent.KEYCODE_DPAD_DOWN -> {
                                 if (!showUI) {
                                     val currentTime = System.currentTimeMillis()
                                     if (currentTime - lastTapTime < 1000) {
@@ -110,6 +110,17 @@ class MainActivity : ComponentActivity() {
                                     lastTapTime = currentTime
                                     true
                                 } else {
+                                    selectedIndex = (selectedIndex + 1).coerceAtMost(totalItems - 1)
+                                    if (selectedIndex >= 3) {
+                                        coroutineScope.launch {
+                                            listState.animateScrollToItem((selectedIndex - 3).coerceAtLeast(0))
+                                        }
+                                    }
+                                    true
+                                }
+                            }
+                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                                if (showUI) {
                                     when (selectedIndex) {
                                         0 -> {
                                             try {
@@ -138,18 +149,9 @@ class MainActivity : ComponentActivity() {
                                             true
                                         }
                                     }
+                                } else {
+                                    false
                                 }
-                            }
-                            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                                if (showUI) {
-                                    selectedIndex = (selectedIndex + 1).coerceAtMost(totalItems - 1)
-                                    if (selectedIndex >= 3) {
-                                        coroutineScope.launch {
-                                            listState.animateScrollToItem((selectedIndex - 3).coerceAtLeast(0))
-                                        }
-                                    }
-                                    true
-                                } else false
                             }
                             KeyEvent.KEYCODE_DPAD_UP -> {
                                 if (showUI) {
