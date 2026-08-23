@@ -10,7 +10,7 @@ A headless Android launcher designed for digital signage, kiosks, and remote dis
 > ❌ **DO NOT** deploy on untrusted networks  
 > ❌ **DO NOT** assume any built-in security controls exist
 
----
+
 
 ## Installation
 
@@ -52,7 +52,6 @@ adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
 - [Examples](#examples)
 - [Documentation](#documentation)
 
----
 
 ## Features
 
@@ -65,7 +64,7 @@ adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
 - D-pad and remote control focus handling for Android TV/set-top boxes.
 - UI reveal via 3x D-Pad DOWN or 3x center-screen tap.
 
----
+
 
 ## Architecture & Components
 
@@ -77,7 +76,6 @@ The application consists of the following internal components:
 4. **`LauncherWebServer`**: Embedded HTTP server running on port 9091.
 5. **`InstallActivity` / `UninstallActivity`**: Transparent activity wrappers required for package management intents.
 
----
 
 ## Usage
 
@@ -158,7 +156,7 @@ POST http://[device-ip]:9091/api/upload-apk
 Content-Type: multipart/form-data
 ```
 
----
+
 
 ## UI Access
 
@@ -168,15 +166,7 @@ To open the settings interface on a headless display:
 2. Press **D-Pad DOWN** 3 times quickly (or tap the center of the display 3 times within 1 second).
 3. Select **"Hide UI"** to return to headless mode.
 
----
 
-## Configuration
-
-- **Port Modification**: Edit the port parameter in `LauncherService.kt` (`LauncherWebServer(9091, ...)`).
-- **App Query Scope**: `AppLauncher.kt` queries launchable applications via `PackageManager.queryIntentActivities()` using `CATEGORY_LAUNCHER`, including pre-installed system apps.
-- **Gesture / Key Modification**: Key event detection (`KEYCODE_DPAD_DOWN`) and tap thresholds can be adjusted in `MainActivity.kt`.
-
----
 
 ## Limitations
 
@@ -184,19 +174,8 @@ To open the settings interface on a headless display:
 - **Local Network Scope**: Restricted to local network interfaces; lacks TLS/HTTPS support.
 - **User Prompts**: Package installation and removal actions require manual confirmation via system dialogs on the physical display.
 
----
 
-## Permissions
 
-| Permission | Purpose |
-|---|---|
-| `INTERNET` | Binds local HTTP server. |
-| `FOREGROUND_SERVICE` / `SPECIAL_USE` | Maintains background daemon execution. |
-| `RECEIVE_BOOT_COMPLETED` | Triggers service initialization on system boot. |
-| `POST_NOTIFICATIONS` | Displays required foreground service notification. |
-| `REQUEST_INSTALL_PACKAGES` / `DELETE_PACKAGES` | Handles application lifecycle intents. |
-
----
 
 ## Troubleshooting
 
@@ -204,18 +183,8 @@ To open the settings interface on a headless display:
 - **Network Validation**: Verify interface connectivity and local port availability (`9091`).
 - **Logcat Verification**: Inspect logs using `adb logcat | grep DisplayLauncher`.
 
----
 
-## Technical Specifications
 
-- **Language**: Kotlin
-- **UI Framework**: Jetpack Compose
-- **HTTP Server**: NanoHTTPD
-- **Serialization**: Gson
-- **Min SDK**: 24
-- **Target SDK**: 35
-
----
 
 ## Examples
 
