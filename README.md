@@ -33,26 +33,6 @@ A headless Android launcher designed for digital signage, kiosks, and remote dis
 adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
 ```
 
----
-
-## Table of Contents
-
-- [Installation](#installation)
-- [Features](#features)
-- [Architecture & Components](#architecture--components)
-- [Usage](#usage)
-  - [Web Interface](#web-interface)
-  - [REST API Reference](#rest-api-reference)
-- [UI Access](#ui-access)
-- [Configuration](#configuration)
-- [Limitations](#limitations)
-- [Permissions](#permissions)
-- [Troubleshooting](#troubleshooting)
-- [Technical Specifications](#technical-specifications)
-- [Examples](#examples)
-- [Documentation](#documentation)
-
-
 ## Features
 
 - REST API endpoints for programmatic application launching and intent execution.
@@ -66,18 +46,17 @@ adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
 
 
 
-## Architecture & Components
-
-The application consists of the following internal components:
-
-1. **`MainActivity`**: Root launcher activity hosting the configuration interface (accessible via 3x D-Pad DOWN or 3x center tap).
-2. **`LauncherService`**: Foreground service maintaining the HTTP server lifecycle independently of UI state. Performs self-healing checks for `BootReceiver` on startup.
-3. **`BootReceiver`**: Broadcast receiver that triggers `LauncherService` upon system startup (`ACTION_BOOT_COMPLETED`).
-4. **`LauncherWebServer`**: Embedded HTTP server running on port 9091.
-5. **`InstallActivity` / `UninstallActivity`**: Transparent activity wrappers required for package management intents.
-
 
 ## Usage
+
+## UI Access
+
+To open the settings interface on a headless display:
+
+1. Return to the home screen (renders a black background).
+2. Press **D-Pad DOWN** 3 times quickly (or tap the center of the display 3 times within 1 second).
+3. Select **"Hide UI"** to return to headless mode.
+
 
 ### Web Interface
 
@@ -158,13 +137,6 @@ Content-Type: multipart/form-data
 
 
 
-## UI Access
-
-To open the settings interface on a headless display:
-
-1. Return to the home screen (renders a black background).
-2. Press **D-Pad DOWN** 3 times quickly (or tap the center of the display 3 times within 1 second).
-3. Select **"Hide UI"** to return to headless mode.
 
 
 
