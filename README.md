@@ -33,17 +33,6 @@ A headless Android launcher designed for digital signage, kiosks, and remote dis
 2. Launch the application locally.
 3. Press **D-Pad DOWN** 3 times rapidly (or tap the center of the screen 3 times within 1 second) to invoke the settings UI.
 4. Select **"Set as Default Launcher"** to register the app as the system home handler.
-5. Grant required permissions.
-
-### ADB Setup Method
-
-```bash
-adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
-```
-
-
-
-
 
 ## Usage
 
