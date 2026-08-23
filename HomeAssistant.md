@@ -11,7 +11,7 @@ Display Launcher's REST API allows Home Assistant to control target Android disp
 - **Doorbell & Alarm Events** - Automating popups and deep links (e.g., camera feeds on doorbell ring).
 - **Custom App Parameters** - Passing intent extras directly to target applications (such as camera names, media URLs, or display parameters).
 
----
+
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ Display Launcher's REST API allows Home Assistant to control target Android disp
 3. Home Assistant instance on the same local network[cite: 8].
 4. Reference documentation: [API Reference](./API.md), [README](./README.md)[cite: 8].
 
----
+
 
 ## REST Commands Setup
 
@@ -59,7 +59,7 @@ rest_command:
 
 After updating `configuration.yaml`, reload REST commands via **Developer Tools → YAML → REST Commands**.
 
----
+
 
 ## Input Helpers
 
@@ -109,7 +109,7 @@ input_text:
     icon: mdi:youtube
 ```
 
----
+
 
 ## Scripts
 
@@ -233,7 +233,7 @@ script:
           data: "{{ url }}"
 ```
 
----
+
 
 ## Automation Examples
 
@@ -298,7 +298,7 @@ automation:
           camera_name: "FRONTDOOR"
 ```
 
----
+
 
 ## Advanced Examples
 
@@ -348,7 +348,7 @@ automation:
             camera_name:{{ cameras[index] }}
 ```
 
----
+
 
 ## Intent Extras Integration
 
@@ -376,7 +376,7 @@ script:
           extra_string: "{{ extra_pairs }}"
 ```
 
----
+
 
 ## Troubleshooting
 
@@ -408,7 +408,7 @@ script:
       adb shell am start -n com.tpn.streamviewer/.MainActivity --es camera_name FRONTDOOR
       ```
 
----
+
 
 ## Complete Package Configuration
 
@@ -483,7 +483,7 @@ script:
           extra_string: "camera_name:{{ camera }}"
 ```
 
----
+
 
 ## Additional Resources
 
