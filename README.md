@@ -49,7 +49,7 @@ adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
 
 ## Usage
 
-## UI Access
+### UI Access
 
 To open the settings interface on a headless display:
 
