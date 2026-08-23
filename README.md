@@ -2,6 +2,14 @@
 
 A headless Android launcher designed for digital signage, kiosks, and remote displays. Controls application execution via a local HTTP API or browser-based control panel.
 
+## Features
+
+- REST API endpoints for programmatic application launching and intent execution.
+- Embedded web interface for device management.
+- Remote APK upload, installation, and package removal.
+- Intent parameter passing (actions, data URIs, and extra key-value pairs).
+
+
 > [!CAUTION]
 > This application has **NO built-in authentication or encryption**. The web server runs on port 9091 with **unrestricted access** to network clients.
 >
@@ -33,16 +41,6 @@ A headless Android launcher designed for digital signage, kiosks, and remote dis
 adb shell cmd package set-home-activity com.tpn.displaylauncher/.MainActivity
 ```
 
-## Features
-
-- REST API endpoints for programmatic application launching and intent execution.
-- Embedded web interface for device management.
-- Remote APK upload, installation, and package removal.
-- Intent parameter passing (actions, data URIs, and extra key-value pairs).
-- Self-healing automatic service initialization on system boot via `BootReceiver`.
-- Persistent foreground service daemon with automated web server watchdog monitoring.
-- D-pad and remote control focus handling for Android TV/set-top boxes.
-- UI reveal via 3x D-Pad DOWN or 3x center-screen tap.
 
 
 
