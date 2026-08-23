@@ -5,8 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -47,9 +49,39 @@ class LauncherService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    // Some devices disable BootReceiver behind the app's back, which takes it out
+    // of the BOOT_COMPLETED resolution set and stops the app ever starting at
+    // boot. A shell cannot undo that for an app that is not test-only, and
+    // reinstalling loses the app's adb key, but the app may set its own
+    // components, so it is repaired here on every service start.
+    private fun ensureBootReceiverEnabled() {
+        try {
+            val receiver = ComponentName(this, BootReceiver::class.java)
+            // Anything that is not enabled, rather than the one disabled state:
+            // DISABLED_USER and DISABLED_UNTIL_USED keep it out of the resolution
+            // set just as surely, and DEFAULT means the manifest value, enabled.
+            val state = packageManager.getComponentEnabledSetting(receiver)
+
+            if (state != PackageManager.COMPONENT_ENABLED_STATE_ENABLED &&
+                state != PackageManager.COMPONENT_ENABLED_STATE_DEFAULT) {
+
+                packageManager.setComponentEnabledSetting(
+                    receiver,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+                Log.i(TAG, "BootReceiver was disabled by OS. Re-enabled it.")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not check or re-enable BootReceiver", e)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Service created")
+
+        ensureBootReceiverEnabled()
         createNotificationChannel()
 
         // Start server monitoring once upon service creation
@@ -87,7 +119,7 @@ class LauncherService : Service() {
             // to prevent foreground service timeout crashes, but the OS will safely
             // suppress the visual notification if the runtime permission is denied.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 Log.w(TAG, "POST_NOTIFICATIONS permission is not granted. Service will run, but notification display will be suppressed.")
             }
 
