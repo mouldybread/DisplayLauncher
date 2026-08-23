@@ -2,22 +2,6 @@
 
 Complete guide for integrating Display Launcher with Home Assistant for automated digital signage, kiosk management, and stream controller integration using REST commands and intent extras.
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Prerequisites](#prerequisites)
-- [REST Commands Setup](#rest-commands-setup)
-- [Input Helpers](#input-helpers)
-- [Scripts](#scripts)
-- [Automation Examples](#automation-examples)
-- [Advanced Examples](#advanced-examples)
-- [Intent Extras Integration](#intent-extras-integration)
-- [Troubleshooting](#troubleshooting)
-- [Complete Package Configuration](#complete-package-configuration)
-- [Additional Resources](#additional-resources)
-
----
-
 ## Overview
 
 Display Launcher's REST API allows Home Assistant to control target Android displays based on:
